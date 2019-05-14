@@ -1,8 +1,11 @@
-if val_1 >= 10
-    finish
+check_exists check val
+if check == 0
+    set val = 1
 end
 
-calc val_1 = val_1 + 1
-print val_1
+calc val = val + 1
+print val
 
-run "./code.hc"
+if val < 10
+    run "./code.hc"
+end

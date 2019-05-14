@@ -17,8 +17,11 @@ class Methods:
         "run": lambda state_dict, methods_dict,  line, following_lines:
             Methods.run_cmd(state_dict, methods_dict, line, following_lines),
 
-        "finish": lambda state_dict, methods_dict, line, following_lines:
-            Methods.finish_cmd(state_dict, methods_dict, line, following_lines)
+        "exit": lambda state_dict, methods_dict, line, following_lines:
+            Methods.exit_cmd(state_dict, methods_dict, line, following_lines),
+
+        "check_exists": lambda state_dict, methods_dict, line, following_lines:
+            Methods.check_exists_cmd(state_dict, methods_dict, line, following_lines)
     }
 
     @staticmethod
@@ -73,10 +76,15 @@ class Methods:
         return state_dict, following_lines
 
     @staticmethod
-    def finish_cmd(state_dict, methods_dict, line, following_lines):
+    def exit_cmd(state_dict, methods_dict, line, following_lines):
         # Skip the entire rest of the code
-        state_dict["finish"] = 1
+        state_dict["exit"] = 1
         return state_dict, []
+
+    @staticmethod
+    def check_exists_cmd(state_dict, methods_dict, line, following_lines):
+        state_dict[line[1]] = int(state_dict.get(line[2]) is not None)
+        return state_dict, following_lines
 
 
 class Runtime:
@@ -86,8 +94,7 @@ class Runtime:
         print("HarvCode: V0.1")
         print("~~~~~~~~~~~~~~")
         self.state = {
-            "exit": 0,
-            "finish": 0
+            "exit": 0
         }
         self.methods = Methods.methods
 
@@ -165,7 +172,7 @@ class StringScript:
             return state_dict
 
         # Finish flag set
-        if not state_dict.get("finish") == 0:
+        if not state_dict.get("exit") == 0:
             return state_dict
 
         # Lines left to run
@@ -186,10 +193,18 @@ class StringScript:
 
     @staticmethod
     def parse_float(state_dict, name):
-        if str.isnumeric(name):
+        if StringScript.is_float(name):
             return float(name)
         else:
             return float(state_dict.get(name))
+
+    @staticmethod
+    def is_float(string):
+        try:
+            float(string)
+            return True
+        except ValueError:
+            return False
 
     @staticmethod
     def parse_if(state_dict, methods_dict, line, following_lines):
