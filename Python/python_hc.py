@@ -21,7 +21,16 @@ class Methods:
             Methods.exit_cmd(state_dict, methods_dict, line, following_lines),
 
         "check_exists": lambda state_dict, methods_dict, line, following_lines:
-            Methods.check_exists_cmd(state_dict, methods_dict, line, following_lines)
+            Methods.check_exists_cmd(state_dict, methods_dict, line, following_lines),
+
+        "def": lambda state_dict, methods_dict, line, following_lines:
+            Methods.def_cmd(state_dict, methods_dict, line, following_lines),
+
+        "call": lambda state_dict, methods_dict, line, following_lines:
+        Methods.call_cmd(state_dict, methods_dict, line, following_lines),
+
+        "//": lambda state_dict, methods_dict, line, following_lines:
+        Methods.comment_cmd(state_dict, methods_dict, line, following_lines)
     }
 
     @staticmethod
@@ -32,6 +41,11 @@ class Methods:
     @staticmethod
     def print_cmd(state_dict, methods_dict, line, following_lines):
         print(StringScript.parse_var(state_dict, line[1]))
+        return state_dict, following_lines
+
+    @staticmethod
+    def comment_cmd(state_dict, methods_dict, line, following_lines):
+        # Ignore anything on this line
         return state_dict, following_lines
 
     @staticmethod
@@ -84,6 +98,23 @@ class Methods:
     @staticmethod
     def check_exists_cmd(state_dict, methods_dict, line, following_lines):
         state_dict[line[1]] = int(state_dict.get(line[2]) is not None)
+        return state_dict, following_lines
+
+    @staticmethod
+    def def_cmd(state_dict, methods_dict, line, following_lines):
+
+        code_body, rest_of_script = StringScript.parse_def(state_dict, methods_dict, line, following_lines)
+        state_dict[line[1]] = code_body
+
+        return state_dict, rest_of_script
+
+    @staticmethod
+    def call_cmd(state_dict, methods_dict, line, following_lines):
+        # words = StringScript.parse_script(open("./code.hc", "r"))
+
+        script = state_dict.get(line[1])
+        state_dict = StringScript.execute(script, methods_dict, state_dict)
+
         return state_dict, following_lines
 
 
@@ -179,7 +210,13 @@ class StringScript:
         line = script[0]
         following_lines = script[1:len(script)]
 
-        state_dict, rest_of_script = methods_dict.get(line[0])(state_dict, methods_dict,  line, following_lines)
+        function = methods_dict.get(line[0])
+        if function is not None:
+            state_dict, rest_of_script = methods_dict.get(line[0])(state_dict, methods_dict,  line, following_lines)
+        else:
+            print("\"" + line[0] + "\" is undefined.")
+            rest_of_script = following_lines
+
         return StringScript.execute(rest_of_script, methods_dict, state_dict)
 
     @staticmethod
@@ -223,7 +260,7 @@ class StringScript:
         if_end = 0
         depth_counter = 0
         for (j, line) in enumerate(following_lines):
-            if line[0] == "if":
+            if line[0] == "def" or line[0] == "if":
                 depth_counter += 1
             elif depth_counter > 0 and line[0] == "end":
                 depth_counter -= 1
@@ -236,6 +273,26 @@ class StringScript:
 
         if_dict["body"] = body
         return if_dict, rest_of_script
+
+    @staticmethod
+    def parse_def(state_dict, methods_dict, line, following_lines):
+
+        # Keep track of the depth of if statements!
+        def_end = 0
+        depth_counter = 0
+        for (j, line) in enumerate(following_lines):
+            if line[0] == "def" or line[0] == "if":
+                depth_counter += 1
+            elif depth_counter > 0 and line[0] == "end":
+                depth_counter -= 1
+            elif line[0] == "end":
+                def_end = j
+                break
+
+        body = following_lines[0:def_end]
+        rest_of_script = following_lines[def_end + 1:len(following_lines)]
+
+        return body, rest_of_script
 
     @staticmethod
     def create_operator(opstr):

@@ -1,11 +1,9 @@
-check_exists check val
-if check == 0
-    set val = 1
+// Increments val
+def increment
+    calc val = val + 1
 end
 
-calc val = val + 1
-print val
-
-if val < 10
-    run "./code.hc"
+check_exists check val
+if check == 1
+    call increment
 end
