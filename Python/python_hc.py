@@ -35,7 +35,7 @@ class Methods:
 
     @staticmethod
     def set_cmd(state_dict, methods_dict, line, following_lines):
-        state_dict[line[1]] = line[3]
+        state_dict[line[1]] = StringScript.parse_var(state_dict, line[3])
         return state_dict, following_lines
 
     @staticmethod
