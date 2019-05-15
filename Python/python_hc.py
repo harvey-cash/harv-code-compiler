@@ -223,7 +223,7 @@ class StringScript:
     def parse_var(state_dict, name):
         if name[0] == "\"" and name[len(name)-1] == "\"":
             return name[1:len(name)-1]
-        elif str.isnumeric(name):
+        elif StringScript.is_float(name):
             return float(name)
         else:
             return state_dict.get(name)

@@ -1,0 +1,3 @@
+﻿
+public enum WordClass { METHOD_NAME, OPERATOR, VARIABLE_NAME, LITERAL, NULL }
+
