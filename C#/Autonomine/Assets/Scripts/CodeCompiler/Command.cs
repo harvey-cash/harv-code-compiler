@@ -5,7 +5,15 @@ using UnityEngine;
 
 public class Command
 {
-    public static (Dictionary<string, object>, object) Evaluate(Dictionary<string, object> memory, string command) {
+    public static (Dictionary<string, object>, object) Run(Dictionary<string, object> memory, string[] commands) {
+        object result = null;
+        for (int i = 0; i < commands.Length; i++) {            
+            (memory, result) = Run(memory, commands[i]);
+        }
+        return (memory, result);
+    }
+
+    public static (Dictionary<string, object>, object) Run(Dictionary<string, object> memory, string command) {
 
         // Base case, evaluates to literal
         if (ScriptParser.IsNumber(command)) {
@@ -17,7 +25,7 @@ public class Command
 
         // Name of something in memory, evaluate and return it
         if (memory.ContainsKey(command)) {
-            return Evaluate(memory, memory[command].ToString());
+            return Run(memory, memory[command].ToString());
         }
 
         // Else, statement or method of some sort
@@ -25,14 +33,14 @@ public class Command
         string buffer = "";
         for (int i = 0; i < command.Length; i++) {
             char c = command[i];
-            
+
             string c2 = command[i + 1].ToString();
 
             // Next two form an operator
             if (ScriptParser.IsOperator(c + c2, out bool twoMakeBool)) {
                 object p1, p2;
-                (memory, p1) = Evaluate(memory, buffer);
-                (memory, p2) = Evaluate(memory, command.Substring(i + 2));
+                (memory, p1) = Run(memory, buffer);
+                (memory, p2) = Run(memory, command.Substring(i + 2));
 
                 if (twoMakeBool) { ScriptParser.BoolOperator op = ScriptParser.BoolOp(c + c2); return (memory, op((float)p1, (float)p2)); }
                 else { ScriptParser.FloatOperator op = ScriptParser.FloatOp(c + c2); return (memory, op((float)p1, (float)p2)); }
@@ -41,8 +49,8 @@ public class Command
             // Else, this one alone forms an operator
             if (ScriptParser.IsOperator(c, out bool isBool)) {
                 object p1, p2;
-                (memory, p1) = Evaluate(memory, buffer);
-                (memory, p2) = Evaluate(memory, command.Substring(i + 1));
+                (memory, p1) = Run(memory, buffer);
+                (memory, p2) = Run(memory, command.Substring(i + 1));
                 
                 if (isBool) { ScriptParser.BoolOperator op = ScriptParser.BoolOp(c); return (memory, op((float)p1, (float)p2)); }
                 else { ScriptParser.FloatOperator op = ScriptParser.FloatOp(c); return (memory, op((float)p1, (float)p2)); }                
@@ -50,7 +58,7 @@ public class Command
 
             // Else, this is an assignment command
             if (c == '=' && ScriptParser.IsAlphaNumeric(c2)) {
-                (memory, memory[buffer]) = Evaluate(memory, command.Substring(i + 1));
+                (memory, memory[buffer]) = Run(memory, command.Substring(i + 1));
                 return (memory, memory[buffer]);
             }
 
@@ -94,10 +102,12 @@ public class Command
     }
 
     private static string ParseSubscript(string restOfCommand) {
+
         // skip to after close bracket
         while (restOfCommand[0] != ')') {
             restOfCommand = restOfCommand.Substring(1);
         }
+        restOfCommand = restOfCommand.Substring(1);
 
         // skip to first opening curly brace
         // if first thing after ) is not space then {, no subscript
@@ -136,7 +146,7 @@ public class Command
         string[] paramStrings = paramString.Split(new char[] { ',' });
         object[] parameters = new object[paramStrings.Length];
         for (int p = 0; p < parameters.Length; p++) {
-            (memory, parameters[p]) = Evaluate(memory, paramStrings[p]);
+            (memory, parameters[p]) = Run(memory, paramStrings[p]);
         }
         return parameters;
     }

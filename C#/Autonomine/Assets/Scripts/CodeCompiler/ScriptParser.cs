@@ -12,6 +12,7 @@ public class ScriptParser
     public static string[] ParseCommandStrings(string scriptString) {
         List<string> listCommands = new List<string>();
 
+        int depthSubscript = 0;
         bool withinSubscript = false;
         bool withinStringLiteral = false;
 
@@ -34,16 +35,30 @@ public class ScriptParser
             // Begin subscript
             if (c == '{' && !withinSubscript) {
                 bufferCommand += c;
+                depthSubscript++;
                 withinSubscript = true;
+                continue;
+            }
+
+            // Within subscript, increase depth
+            if (c == '{' && withinSubscript) {
+                bufferCommand += c;
+                depthSubscript++;
                 continue;
             }
 
             // End subscript
             if (c == '}' && withinSubscript) {
                 bufferCommand += c;
-                listCommands.Add(bufferCommand);
-                bufferCommand = "";
-                withinSubscript = false;
+                depthSubscript--;
+
+                // Broke the surface
+                if (depthSubscript < 1) {
+                    listCommands.Add(bufferCommand);
+                    bufferCommand = "";
+                    withinSubscript = false;
+                }
+
                 continue;
             }
 

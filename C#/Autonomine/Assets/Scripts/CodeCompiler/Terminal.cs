@@ -21,10 +21,8 @@ public class Terminal : MonoBehaviour
         input.onEndEdit.AddListener(delegate {
             Print("> " + input.text);
 
-            string[] commandStrings = ScriptParser.ParseCommandStrings(input.text);
-            for (int i = 0; i < commandStrings.Length; i++) {
-                Debug.Log(commandStrings[i]);
-            }
+            string[] commands = ScriptParser.ParseCommandStrings(input.text);
+            Command.Run(memory, commands);
 
             input.text = "";
             //input.ActivateInputField();
