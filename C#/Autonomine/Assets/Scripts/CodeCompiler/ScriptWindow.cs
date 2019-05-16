@@ -15,9 +15,10 @@ public class ScriptWindow : MonoBehaviour
 
         apply.onClick.AddListener(delegate {
 
-            string[][] script = ScriptParser.ParseScript(input.text);            
-
-            Terminal.terminal.runtime.Execute(script, memory);
+            Command[] commands = ScriptParser.ParseCommands(input.text);
+            for (int i = 0; i < commands.Length; i++) {
+                Debug.Log(commands[i]);
+            }
 
             input.ActivateInputField();
         });

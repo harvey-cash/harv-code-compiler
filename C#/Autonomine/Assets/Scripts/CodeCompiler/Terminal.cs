@@ -21,15 +21,19 @@ public class Terminal : MonoBehaviour
         runtime = new Runtime();
         
         input.onEndEdit.AddListener(delegate {
-            PrintToTerminal("> " + input.text);
-            runtime.Execute(ScriptParser.ParseScript(input.text), memory);
+            Print("> " + input.text);
+
+            string[] commandStrings = ScriptParser.ParseCommandStrings(input.text);
+            for (int i = 0; i < commandStrings.Length; i++) {
+                Debug.Log(commandStrings[i]);
+            }
 
             input.text = "";
-            input.ActivateInputField();
+            //input.ActivateInputField();
         });
     }
 
-    public void PrintToTerminal(string log) {
+    public void Print(string log) {
         history.text += log + "\n";
     }
 }

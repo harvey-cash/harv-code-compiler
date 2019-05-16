@@ -5,6 +5,68 @@ using UnityEngine;
 
 public class ScriptParser
 {
+    public static char[] ignoreChars = new char[] { '\t' };
+
+    public static Command[] ParseCommands(string scriptString) {
+        string[] commandStrings = ParseCommandStrings(scriptString);
+        Command[] commands = new Command[commandStrings.Length];
+
+        for (int i = 0; i < commandStrings.Length; i++) {
+            commands[i] = new Command(commandStrings[i]);
+        }
+
+        return commands;
+    }
+
+    public static string[] ParseCommandStrings(string scriptString) {
+        List<string> listCommands = new List<string>();
+
+        bool withinSubscript = false;
+        string bufferCommand = "";
+
+        for (int i = 0; i < scriptString.Length; i++) {
+            char c = scriptString[i];
+            if (Array.Exists(ignoreChars, x => x == c)) {
+                continue;
+            }
+
+            // Begin subscript
+            if (c == '{' && !withinSubscript) {
+                bufferCommand += c;
+                withinSubscript = true;
+                continue;
+            }
+
+            // End subscript
+            if (c == '}' && withinSubscript) {
+                bufferCommand += c;
+                listCommands.Add(bufferCommand);
+                bufferCommand = "";
+                withinSubscript = false;
+                continue;
+            }
+
+            // Split on line breaks
+            if (c == '\n') {
+                if (!withinSubscript && bufferCommand.Length > 0) {
+                    listCommands.Add(bufferCommand);
+                    bufferCommand = "";
+                }
+                continue;
+            }
+
+            // Otherwise, simply add to buffer
+            bufferCommand += c;
+        }
+
+        // Final command
+        if (bufferCommand.Length > 0) {
+            listCommands.Add(bufferCommand);
+        }
+
+        return listCommands.ToArray();
+    }
+
     public static string[][] ParseScript(string scriptString) {
 
         string[] script = scriptString.Split(new char[] { '\n' });
@@ -82,4 +144,42 @@ public class ScriptParser
 
         return buffer;
     }
+
+    public delegate bool BoolOperator(float a, float b);
+    public static BoolOperator BoolOp(string opstr) {
+        if (opstr.Equals("=="))
+            return (a, b) => a == b;
+        if (opstr.Equals("!="))
+            return (a, b) => a != b;
+        if (opstr.Equals(">"))
+            return (a, b) => a > b;
+        if (opstr.Equals(">="))
+            return (a, b) => a >= b;
+        if (opstr.Equals("<"))
+            return (a, b) => a < b;
+        if (opstr.Equals("<="))
+            return (a, b) => a <= b;
+
+        throw new Exception();
+    }
+
+    public delegate float FloatOperator(float a, float b);
+    public static FloatOperator FloatOp(string opstr) {
+        if (opstr.Equals("+"))
+            return (a, b) => a + b;
+        if (opstr.Equals("-"))
+            return (a, b) => a - b;
+        if (opstr.Equals("*"))
+            return (a, b) => a * b;
+        if (opstr.Equals("/"))
+            return (a, b) => a / b;
+        if (opstr.Equals("%"))
+            return (a, b) => a % b;
+        if (opstr.Equals("^"))
+            return (a, b) => (float)Math.Pow(a, b);
+
+        throw new Exception();
+    }
+
+
 }
