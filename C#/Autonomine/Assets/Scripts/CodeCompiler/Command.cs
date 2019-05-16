@@ -7,10 +7,15 @@ public class Command
 {
     public static (Dictionary<string, object>, object) Run(Dictionary<string, object> memory, string[] commands) {
         object result = null;
-        for (int i = 0; i < commands.Length; i++) {            
-            (memory, result) = Run(memory, commands[i]);
+        try {
+            for (int i = 0; i < commands.Length; i++) {
+                (memory, result) = Run(memory, commands[i]);
+            }
+            return (memory, result);
+        } catch {
+            Terminal.terminal.Print("Script terminated.");
+            return (memory, null);
         }
-        return (memory, result);
     }
 
     public static (Dictionary<string, object>, object) Run(Dictionary<string, object> memory, string command) {
@@ -34,16 +39,25 @@ public class Command
         for (int i = 0; i < command.Length; i++) {
             char c = command[i];
 
-            string c2 = command[i + 1].ToString();
+            // At least two characters left to play with
+            if (command.Length > i+1) {
+                string c2 = command[i + 1].ToString();
 
-            // Next two form an operator
-            if (ScriptParser.IsOperator(c + c2, out bool twoMakeBool)) {
-                object p1, p2;
-                (memory, p1) = Run(memory, buffer);
-                (memory, p2) = Run(memory, command.Substring(i + 2));
+                // Next two form an operator
+                if (ScriptParser.IsOperator(c + c2, out bool twoMakeBool)) {
+                    object p1, p2;
+                    (memory, p1) = Run(memory, buffer);
+                    (memory, p2) = Run(memory, command.Substring(i + 2));
 
-                if (twoMakeBool) { ScriptParser.BoolOperator op = ScriptParser.BoolOp(c + c2); return (memory, op((float)p1, (float)p2)); }
-                else { ScriptParser.FloatOperator op = ScriptParser.FloatOp(c + c2); return (memory, op((float)p1, (float)p2)); }
+                    if (twoMakeBool) { ScriptParser.BoolOperator op = ScriptParser.BoolOp(c + c2); return (memory, op((float)p1, (float)p2)); }
+                    else { ScriptParser.FloatOperator op = ScriptParser.FloatOp(c + c2); return (memory, op((float)p1, (float)p2)); }
+                }
+
+                // Else, this is an assignment command
+                if (c == '=' && ScriptParser.IsAlphaNumeric(c2)) {
+                    (memory, memory[buffer]) = Run(memory, command.Substring(i + 1));
+                    return (memory, memory[buffer]);
+                }
             }
 
             // Else, this one alone forms an operator
@@ -56,13 +70,7 @@ public class Command
                 else { ScriptParser.FloatOperator op = ScriptParser.FloatOp(c); return (memory, op((float)p1, (float)p2)); }                
             }
 
-            // Else, this is an assignment command
-            if (c == '=' && ScriptParser.IsAlphaNumeric(c2)) {
-                (memory, memory[buffer]) = Run(memory, command.Substring(i + 1));
-                return (memory, memory[buffer]);
-            }
-
-            // Else, if '=' this code is wrong
+            // Else, if '=' alone, this code is wrong
             if (c == '=') {
                 throw new Exception();
             }
@@ -83,7 +91,8 @@ public class Command
         }
 
         // We reached the end without calling anything interesting? Oh.
-        // I guess we don't like that
+        // I guess we don't like that. Probably doesn't exist
+        Terminal.terminal.Print("\"" + buffer + "\" is undefined.");
         throw new Exception();
     }
 
