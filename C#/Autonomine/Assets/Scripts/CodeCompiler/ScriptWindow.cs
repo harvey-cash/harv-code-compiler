@@ -15,10 +15,12 @@ public class ScriptWindow : MonoBehaviour
 
         apply.onClick.AddListener(delegate {
 
-            Command[] commands = ScriptParser.ParseCommands(input.text);
+            string[] commands = ScriptParser.ParseCommandStrings(input.text);
             for (int i = 0; i < commands.Length; i++) {
-                Debug.Log(commands[i]);
+                object result;
+                (memory, result) = Command.Evaluate(memory, commands[i]);
             }
+            Debug.Log(ScriptParser.MemoryString(memory));
 
             input.ActivateInputField();
         });

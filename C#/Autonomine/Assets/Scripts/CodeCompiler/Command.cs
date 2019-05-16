@@ -5,131 +5,149 @@ using UnityEngine;
 
 public class Command
 {
-    private enum WordOrder {
-        Destination = 0,
-        Method = 1,
-        Params = 2,
-        Ignore = 3,
-        Subscript = 4,
-        Finished = 5
-    }
+    public static (Dictionary<string, object>, object) Evaluate(Dictionary<string, object> memory, string command) {
 
-    public string destination = null, method = null, value = null;
-    public string[] parameters = null;
-    public string subscript = null;
+        // Base case, evaluates to literal
+        if (ScriptParser.IsNumber(command)) {
+            return (memory, float.Parse(command));
+        }
+        if (ScriptParser.IsStringLiteral(command)) {
+            return (memory, command.Substring(1, command.Length - 2));
+        }
 
-    public override string ToString() {
+        // Name of something in memory, evaluate and return it
+        if (memory.ContainsKey(command)) {
+            return Evaluate(memory, memory[command].ToString());
+        }
+
+        // Else, statement or method of some sort
+
         string buffer = "";
-        if (destination != null) { buffer += "dest: " + destination + ","; }
-        if (method != null) { buffer += "method: " + method + ","; }
-        if (value != null) { buffer += "value: " + value + ","; }
-        if (parameters != null) { buffer += "params: " + parameters.ToString() + ","; }
-        if (subscript != null) { buffer += "subscript: " + subscript; }
+        for (int i = 0; i < command.Length; i++) {
+            char c = command[i];
+            
+            string c2 = command[i + 1].ToString();
 
-        return buffer;
-    }
+            // Next two form an operator
+            if (ScriptParser.IsOperator(c + c2, out bool twoMakeBool)) {
+                object p1, p2;
+                (memory, p1) = Evaluate(memory, buffer);
+                (memory, p2) = Evaluate(memory, command.Substring(i + 2));
 
-    public Command(string commandString) {
-        string parameterBody = null;
-
-        WordOrder state = WordOrder.Destination;
-        int subscriptDepth = 0;
-        string bufferWord = "";
-
-        for (int i = 0; i < commandString.Length; i++) {
-            char c = commandString[i];
-
-            // assignment
-            if (c == '=' && state == WordOrder.Destination) {                
-                destination = bufferWord;
-                bufferWord = "";
-                state = WordOrder.Method;
-                continue;
+                if (twoMakeBool) { ScriptParser.BoolOperator op = ScriptParser.BoolOp(c + c2); return (memory, op((float)p1, (float)p2)); }
+                else { ScriptParser.FloatOperator op = ScriptParser.FloatOp(c + c2); return (memory, op((float)p1, (float)p2)); }
             }
 
-            // start params
-            if (c == '(' && (state == WordOrder.Method || destination == null)) {
-                method = bufferWord;
-                bufferWord = "";
-                state = WordOrder.Params;
-                continue;
-            }
-
-            // end params
-            if (c == ')' && state == WordOrder.Params) {
-                parameterBody = bufferWord;
-                bufferWord = "";
-                state = WordOrder.Ignore;
-                continue;
-            }
-
-            // start subscript
-            if (c == '{' && state == WordOrder.Ignore) {
-                bufferWord = "";
-                state = WordOrder.Subscript;
-                continue;
-            }
-
-            // deeper subscripts
-            if (c == '{' && state == WordOrder.Subscript) {
-                bufferWord += c;
-                subscriptDepth++;
-            }
-
-            // shallower / end subscript
-            if (c == '}' && state == WordOrder.Subscript) {
-                // shallower
-                if (subscriptDepth > 0) {
-                    bufferWord += c;
-                    subscriptDepth--;
-                }
-                // finish
-                else {
-                    subscript = bufferWord;
-                    bufferWord = "";
-                    state = WordOrder.Finished;
-                }
+            // Else, this one alone forms an operator
+            if (ScriptParser.IsOperator(c, out bool isBool)) {
+                object p1, p2;
+                (memory, p1) = Evaluate(memory, buffer);
+                (memory, p2) = Evaluate(memory, command.Substring(i + 1));
                 
-                continue;
+                if (isBool) { ScriptParser.BoolOperator op = ScriptParser.BoolOp(c); return (memory, op((float)p1, (float)p2)); }
+                else { ScriptParser.FloatOperator op = ScriptParser.FloatOp(c); return (memory, op((float)p1, (float)p2)); }                
             }
 
-            bufferWord += c;
+            // Else, this is an assignment command
+            if (c == '=' && ScriptParser.IsAlphaNumeric(c2)) {
+                (memory, memory[buffer]) = Evaluate(memory, command.Substring(i + 1));
+                return (memory, memory[buffer]);
+            }
+
+            // Else, if '=' this code is wrong
+            if (c == '=') {
+                throw new Exception();
+            }
+
+            // Else neither an assignment nor a simple statement
+            // The start of a method?
+            if (c == '(') {
+                string methodName = buffer;
+                object[] parameters = ParseParameters(command.Substring(i + 1), memory);
+                string subscript = ParseSubscript(command.Substring(i + 1));
+
+                return LookupAndRun(memory, methodName, parameters, subscript);
+            }
+
+            // Must just be some other letter or number!
+            // Continue to add to the buffer
+            buffer += c;
         }
 
-        // end of command and still awaiting end of method declaration
-        // must therefore be a value!
-        if (state == WordOrder.Method) {
-            value = bufferWord;
-        }
-
-        parameters = SeparateString(parameterBody);
+        // We reached the end without calling anything interesting? Oh.
+        // I guess we don't like that
+        throw new Exception();
     }
 
-    private static string[] SeparateString(string body) {
-        if (body == null) {
+    // Look in library for a method to run. Error if it doesn't exist!
+    private static (Dictionary<string, object>, object) LookupAndRun(
+        Dictionary<string, object> memory, string name, object[] parameters, string subscript) {
+
+        bool defined = Library.methods.TryGetValue(name, out Library.Method Method);
+        
+        if (!defined) {
+            Terminal.terminal.Print("\"" + name + "\" is undefined.");
+            return (memory, null);
+        } else {
+            return Method(memory, name, parameters, subscript);
+        }
+    }
+
+    private static string ParseSubscript(string restOfCommand) {
+        // skip to after close bracket
+        while (restOfCommand[0] != ')') {
+            restOfCommand = restOfCommand.Substring(1);
+        }
+
+        // skip to first opening curly brace
+        // if first thing after ) is not space then {, no subscript
+        try {
+            while (restOfCommand[0] == ' ') {
+                restOfCommand = restOfCommand.Substring(1);
+            }
+            if (!(restOfCommand[0] == '{')) { throw new Exception(); }
+        }
+        // no subscript
+        catch {
             return null;
         }
 
-        List<string> listParams = new List<string>();
-        string bufferWord = "";
+        restOfCommand = restOfCommand.Substring(1);
+        // record inside brace until close brace of same level
+        string buffer = "";
+        int depth = 1;
+        for (int i = 0; i < restOfCommand.Length; i++) {
+            buffer += restOfCommand[i];
 
-        for (int i = 0; i < body.Length; i++) {
-            char c = body[i];
-
-            if (c == ',') {
-                listParams.Add(bufferWord);
-                bufferWord = "";
-                continue;
+            if (restOfCommand[i] == '{') { depth++; }
+            if (restOfCommand[i] == '}') {
+                depth--;
+                if (depth < 1) {
+                    break;
+                }
             }
-
-            bufferWord += c;
         }
-
-        if (bufferWord.Length > 0) {
-            listParams.Add(bufferWord);
-        }
-
-        return listParams.ToArray();
+        // Ignore last outer brace
+        return buffer.Substring(0, buffer.Length - 1);
     }
-    
+
+    private static object[] ParseParameters(string restOfCommand, Dictionary<string,object> memory) {
+        string paramString = ParamsWithinBrackets(restOfCommand);
+        string[] paramStrings = paramString.Split(new char[] { ',' });
+        object[] parameters = new object[paramStrings.Length];
+        for (int p = 0; p < parameters.Length; p++) {
+            (memory, parameters[p]) = Evaluate(memory, paramStrings[p]);
+        }
+        return parameters;
+    }
+
+    // Will throw error if no ending bracket
+    private static string ParamsWithinBrackets(string restOfCommand) {
+        string paramBuffer = "";
+        while (restOfCommand[0] != ')') {
+            paramBuffer += restOfCommand[0];
+            restOfCommand = restOfCommand.Substring(1);
+        }
+        return paramBuffer;
+    }    
 }

@@ -6,7 +6,6 @@ using UnityEngine.UI;
 public class Terminal : MonoBehaviour
 {
     public static Terminal terminal;
-    public Runtime runtime;
 
     public InputField input;
     public Text history;
@@ -18,7 +17,6 @@ public class Terminal : MonoBehaviour
         Dictionary<string, object> memory = new Dictionary<string, object>();
 
         terminal = this;
-        runtime = new Runtime();
         
         input.onEndEdit.AddListener(delegate {
             Print("> " + input.text);

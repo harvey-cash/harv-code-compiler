@@ -1,32 +1,33 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using UnityEngine;
 
 public class ScriptParser
 {
     public static char[] ignoreChars = new char[] { '\t' };
 
-    public static Command[] ParseCommands(string scriptString) {
-        string[] commandStrings = ParseCommandStrings(scriptString);
-        Command[] commands = new Command[commandStrings.Length];
-
-        for (int i = 0; i < commandStrings.Length; i++) {
-            commands[i] = new Command(commandStrings[i]);
-        }
-
-        return commands;
-    }
-
+    // We don't like spaces anywhere other than within string literals
     public static string[] ParseCommandStrings(string scriptString) {
         List<string> listCommands = new List<string>();
 
         bool withinSubscript = false;
+        bool withinStringLiteral = false;
+
         string bufferCommand = "";
 
         for (int i = 0; i < scriptString.Length; i++) {
             char c = scriptString[i];
             if (Array.Exists(ignoreChars, x => x == c)) {
+                continue;
+            }
+
+            if (c == '"') {
+                withinStringLiteral = !withinStringLiteral;
+            }
+            // Ignore spaces everywhere except within strings!
+            if (c == ' ' && !withinStringLiteral) {
                 continue;
             }
 
@@ -67,85 +68,29 @@ public class ScriptParser
         return listCommands.ToArray();
     }
 
-    public static string[][] ParseScript(string scriptString) {
 
-        string[] script = scriptString.Split(new char[] { '\n' });
-        List<string[]> lines = new List<string[]>();
-
-        for (int l = 0; l < script.Length; l++) {
-            string line = script[l];
-
-            if (line == "" || line == "\n")
-                continue;
-
-            string[] lineWords = ParseLine(line);
-
-            if (lineWords.Length > 0) {
-                lines.Add(lineWords);
+    public static bool IsOperator(char c, out bool isBool) { return IsOperator(c.ToString(), out isBool); }
+    public static bool IsOperator(string opstr, out bool isBool) {
+        try {
+            BoolOp(opstr);
+            isBool = true;
+            return true;
+        }
+        catch {
+            try {
+                FloatOp(opstr);
+                isBool = false;
+                return true;
+            }
+            catch {
+                isBool = false;
+                return false;
             }
         }
-
-        return lines.ToArray();
-    }
-
-    public static string[] ParseLine(string line) {
-
-        List<string> lineWords = new List<string>();
-        bool withinString = false;
-        string wordBuffer = "";
-
-        for (int i = 0; i < line.Length; i++) {
-            char c = line[i];
-
-            if (c == '\"') {
-                withinString = !withinString;
-
-                wordBuffer += c;
-                if (!withinString) {
-                    lineWords.Add(wordBuffer);
-                    wordBuffer = "";
-                }
-            }
-            else if (c == ' ') {
-                if (withinString) {
-                    wordBuffer += c;
-                }
-                else if (wordBuffer.Length > 0) {
-                    lineWords.Add(wordBuffer);
-                    wordBuffer = "";
-                }
-            }
-            else if (c != '\n' && c != '\t') {
-                wordBuffer += c;
-            }
-        }
-
-        if (wordBuffer.Length > 0) {
-            lineWords.Add(wordBuffer);
-        }
-        return lineWords.ToArray();
-    }
-
-    public static string CodeToString(string[] line) {
-        return CodeToString(new string[][] { line });
-    }
-
-    public static string CodeToString(string[][] commands) {
-        string buffer = "[";
-        for (int i = 0; i < commands.Length; i++) {
-            buffer += "[";
-            for (int j = 0; j < commands[i].Length - 1; j++) {
-                buffer += commands[i][j];
-                buffer += ",";
-            }
-            buffer += commands[i][commands[i].Length - 1] + "],";
-        }
-        buffer += "]";
-
-        return buffer;
     }
 
     public delegate bool BoolOperator(float a, float b);
+    public static BoolOperator BoolOp(char c) { return BoolOp(c.ToString()); }
     public static BoolOperator BoolOp(string opstr) {
         if (opstr.Equals("=="))
             return (a, b) => a == b;
@@ -164,6 +109,7 @@ public class ScriptParser
     }
 
     public delegate float FloatOperator(float a, float b);
+    public static FloatOperator FloatOp(char c) { return FloatOp(c.ToString()); }
     public static FloatOperator FloatOp(string opstr) {
         if (opstr.Equals("+"))
             return (a, b) => a + b;
@@ -181,5 +127,24 @@ public class ScriptParser
         throw new Exception();
     }
 
+    public static bool IsAlphaNumeric(string word) {
+        Regex r = new Regex("^[a-zA-Z0-9]*$");
+        return r.IsMatch(word);
+    }
 
+    public static bool IsNumber(string word) {
+        return float.TryParse(word, out float val);
+    }
+
+    public static bool IsStringLiteral(string word) {
+        return word[0] == '\"';
+    }
+
+    public static string MemoryString(Dictionary<string, object> memory) {
+        string buffer = "";
+        foreach (KeyValuePair<string, object> kvp in memory) {
+            buffer += kvp.ToString() + ",";
+        }
+        return buffer;
+    }
 }
