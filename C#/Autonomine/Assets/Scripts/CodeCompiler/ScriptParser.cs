@@ -162,16 +162,25 @@ public class ScriptParser {
     // beware of strings with operations inside them...
     public static bool IsOperationStatement(string statement, 
         out string left, out string opstr, out string right) {
-        
+
+        int depth = 0;
         bool withinOp = false;
-        string buffer = "";
+        string opBuffer = "";
 
         for (int i = 0; i < statement.Length; i++) {
             char c = statement[i];
 
+            // only concern ourselves with operators
+            // outside of parameters
+            if (c == '(') { depth++; continue; }
+            if (c == ')') { depth--; continue; }
+            if (depth != 0) {
+                continue;
+            }
+
             // Start of something non-alphanumeric
             if (!withinOp && !IsAlphaNumeric(c)) {
-                buffer += c;
+                opBuffer += c;
                 withinOp = true;
                 continue;
             }
@@ -179,12 +188,12 @@ public class ScriptParser {
             // Continuation of something...
             if (withinOp) {
                 if (!IsAlphaNumeric(c)) {
-                    buffer += c;
+                    opBuffer += c;
                     continue;
                 }
                 else {
-                    if (IsOperator(buffer, out _)) {
-                        opstr = buffer;
+                    if (IsOperator(opBuffer, out _)) {
+                        opstr = opBuffer;
                         left = statement.Substring(0, i - opstr.Length);
                         right = statement.Substring(i);
                         return true;

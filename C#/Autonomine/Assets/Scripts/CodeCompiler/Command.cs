@@ -76,7 +76,18 @@ public class Command {
         if (ScriptParser.IsStringLiteral(command)) {
             return (memory, command.Substring(1, command.Length - 2));
         }
+        // Operator statement
+        if (ScriptParser.IsOperationStatement(command, 
+            out string left, out string opstr, out string right)) {
+            
+            ScriptParser.IsOperator(opstr, out bool isBool);
+            object leftSide, rightSide;
+            (memory, leftSide) = Run(memory, left);
+            (memory, rightSide) = Run(memory, right);
 
+            if (isBool) { ScriptParser.BoolOperator op = ScriptParser.BoolOp(opstr); return (memory, op((float)leftSide, (float)rightSide)); }
+            else { ScriptParser.FloatOperator op = ScriptParser.FloatOp(opstr); return (memory, op((float)leftSide, (float)rightSide)); }
+        }
         // Name of something in memory, evaluate and return it
         if (memory.ContainsKey(command)) {
             return Run(memory, memory[command].ToString());
@@ -87,6 +98,7 @@ public class Command {
         string buffer = "";
         for (int i = 0; i < command.Length; i++) {
             char c = command[i];
+
 
             // At least two characters left to play with
             if (command.Length > i+1) {
