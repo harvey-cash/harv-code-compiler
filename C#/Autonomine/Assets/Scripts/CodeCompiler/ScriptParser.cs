@@ -29,6 +29,7 @@ public class ScriptParser {
             }
             // Ignore spaces everywhere except within strings!
             if (c == ' ' && !withinStringLiteral) {
+                if (bufferCommand == "def") { bufferCommand += '~'; }
                 continue;
             }
 
@@ -78,6 +79,39 @@ public class ScriptParser {
         // Final command
         if (bufferCommand.Length > 0) {
             listCommands.Add(bufferCommand);
+        }
+
+        // Reword method declarations
+        return RewordDefs(listCommands);
+    }
+
+    // def is actually a method that gets called with parameters for
+    // method name and parameter names
+    private static string[] RewordDefs(List<string> listCommands) {
+        for (int i = 0; i < listCommands.Count; i++) {
+            if (listCommands[i].Substring(0,4) == "def~") {
+                string[] parameters = SplitParameters(listCommands[i]);
+                Debug.Log(ArrayToString(parameters));
+
+                string name = null;
+
+                int paramEndIndex = 0;
+                for (int j = 4; j < listCommands[i].Length; j++) {
+                    char c = listCommands[i][j];
+
+                    if (name == null && c == '(') { name = listCommands[i].Substring(4,j-4); }
+                    if (c == '{') { paramEndIndex = j; break; }
+                }
+
+                string methodDeclaration = "def(\"" + name + "\"";
+                for (int p = 0; p < parameters.Length; p++) {
+                    methodDeclaration += ",\"" + parameters[p] + "\"";
+                }
+                methodDeclaration += ")";
+
+                listCommands[i] = methodDeclaration + listCommands[i].Substring(paramEndIndex);
+                Debug.Log(listCommands[i]);
+            }
         }
 
         return listCommands.ToArray();
@@ -220,6 +254,29 @@ public class ScriptParser {
             buffer += kvp.ToString() + ",";
         }
         return buffer;
+    }
+
+    public static string ParseSubscript(string restOfCommand) {
+        // record inside brace until close brace of same level
+        string buffer = "";
+        int depth = 0;
+
+        for (int i = 0; i < restOfCommand.Length; i++) {
+            char c = restOfCommand[i];
+
+            if (c == '{') {
+                if (depth == 0) { depth++; continue; } // Ignore first open curly brace
+                else { depth++; }
+            }
+            if (c == '}') {
+                depth--;
+                if (depth == 0) { return buffer; } // Last curly close brace, return
+            }
+
+            // If within substring, add to buffer
+            if (depth > 0) { buffer += c; }
+        }
+        return null;
     }
 
     // Step through parameters from first bracket (which must be there!) until final

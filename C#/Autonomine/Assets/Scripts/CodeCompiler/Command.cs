@@ -116,7 +116,7 @@ public class Command {
                 string methodName = buffer;
                 // include open bracket for parsing parameters
                 object[] parameters = ParseParameters(command.Substring(i), memory);
-                string subscript = ParseSubscript(command.Substring(i + 1));
+                string subscript = ScriptParser.ParseSubscript(command.Substring(i + 1));
 
                 return LookupAndRun(memory, methodName, parameters, subscript);
             }
@@ -152,30 +152,6 @@ public class Command {
         // Else:
         Terminal.terminal.Print("\"" + name + "\" is undefined.");
         return (memory, null);
-    }
-
-
-    private static string ParseSubscript(string restOfCommand) {
-        // record inside brace until close brace of same level
-        string buffer = "";
-        int depth = 0;
-
-        for (int i = 0; i < restOfCommand.Length; i++) {
-            char c = restOfCommand[i];
-
-            if (c == '{') {                
-                if (depth == 0) { depth++; continue; } // Ignore first open curly brace
-                else { depth++; }
-            }
-            if (c == '}') {
-                depth--;
-                if (depth == 0) { return buffer; } // Last curly close brace, return
-            }
-
-            // If within substring, add to buffer
-            if (depth > 0) { buffer += c; }
-        }
-        return null;
     }
 
     // Don't split on ','s within brackets! (Methods as parameters...)
