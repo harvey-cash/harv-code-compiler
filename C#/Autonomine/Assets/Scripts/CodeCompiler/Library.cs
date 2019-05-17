@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -25,30 +26,27 @@ public class Library
     public static Method If = (memory, name, parameters, subscript) => {
         // if only takes one parameter, which equates to a bool
         if ((bool)parameters[0]) {
-            string[] commandStrings = ScriptParser.ParseCommandStrings(subscript);
-
-            object result;
-            Dictionary<string, object> subMemory;
-            (subMemory, result) = Command.Run(memory, commandStrings);
-            return (ResolveSubScope(memory, subMemory), result);
+            return Command.RunSubscript(memory, subscript);
         }
         else {
             return (memory, null);
         }
     };
 
+    public static Method Def = (memory, name, parameters, subscript) => {
+        string[] restOfParameters = new string[parameters.Length-1];
+        Array.Copy(parameters, 1, restOfParameters, 0, parameters.Length - 1);
+
+        string methodName = (string)parameters[0];
+        memory[methodName] = new UserMethod(restOfParameters, subscript);
+        return (memory, null);
+    };
+
     // Harvey-defined methods
     public static Dictionary<string, Method> methods = new Dictionary<string, Method>() {
         { "print", Print },
-        { "if", If }
+        { "if", If },
+        { "def", Def }
     };
-
-    // Modify what already existed, forget all else
-    public static Dictionary<string, object> ResolveSubScope(Dictionary<string, object> memory, Dictionary<string, object> subMemory) {
-        foreach (var entry in memory) {
-            memory[entry.Key] = subMemory[entry.Key];
-        }
-        return memory;
-    }
 
 }

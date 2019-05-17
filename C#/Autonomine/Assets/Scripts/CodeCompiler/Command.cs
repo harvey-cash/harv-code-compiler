@@ -5,6 +5,7 @@ using UnityEngine;
 
 public class Command
 {
+    // Run all commands in array of command strings
     public static (Dictionary<string, object>, object) Run(Dictionary<string, object> memory, string[] commands) {
         object result = null;
         try {
@@ -12,12 +13,43 @@ public class Command
                 (memory, result) = Run(memory, commands[i]);
             }
             return (memory, result);
-        } catch {
+        } catch (Exception e) {
+            Debug.LogError(e);
             Terminal.terminal.Print("Script terminated.");
             return (memory, null);
         }
     }
 
+    // Run subscript on copy of memory, and remove changes to anything that wasn't defined in the outer scope
+    public static (Dictionary<string, object>, object) RunSubscript(Dictionary<string, object> memory, string subscript) {
+        Dictionary<string, object> subMemory = new Dictionary<string, object>(memory);
+        return RunSubscript(memory, subMemory, subscript);
+    }
+
+    // Run subscript on subMemory, and remove changes to anything that wasn't defined in the outer scope's memory
+    public static (Dictionary<string, object>, object) RunSubscript(Dictionary<string, object> memory, Dictionary<string, object> subMemory, string subscript) {
+        string[] subCommands = ScriptParser.ParseCommandStrings(subscript);
+
+        object result;
+        (subMemory, result) = Run(subMemory, subCommands);
+        return (ResolveSubScope(memory, subMemory), result);
+    }
+
+    // Modify what already existed, forget all else
+    public static Dictionary<string, object> ResolveSubScope(Dictionary<string, object> memory, Dictionary<string, object> subMemory) {
+        Dictionary<string, object> modifiedOuterScope = new Dictionary<string, object>();
+
+        // Avoid modifying memory while enumerating over it
+        foreach (var entry in memory) {
+            modifiedOuterScope[entry.Key] = subMemory[entry.Key];
+        }
+        foreach (var entry in modifiedOuterScope) {
+            memory[entry.Key] = modifiedOuterScope[entry.Key];
+        }
+        return memory;
+    }
+
+    // Run a command string
     public static (Dictionary<string, object>, object) Run(Dictionary<string, object> memory, string command) {
 
         // Base case, evaluates to literal
@@ -96,19 +128,27 @@ public class Command
         throw new Exception();
     }
 
-    // Look in library for a method to run. Error if it doesn't exist!
+    // Look for a method to run. Error if it doesn't exist!
     private static (Dictionary<string, object>, object) LookupAndRun(
         Dictionary<string, object> memory, string name, object[] parameters, string subscript) {
 
-        bool defined = Library.methods.TryGetValue(name, out Library.Method Method);
-        
-        if (!defined) {
-            Terminal.terminal.Print("\"" + name + "\" is undefined.");
-            return (memory, null);
-        } else {
+        // Built-in method?
+        bool provided = Library.methods.TryGetValue(name, out Library.Method Method);        
+        if (provided) {
             return Method(memory, name, parameters, subscript);
         }
+
+        // User-defined method?
+        bool defined = memory.TryGetValue(name, out object method);
+        if (defined) {
+            return UserMethod.CallUserMethod(memory, (UserMethod)method, parameters);
+        }
+
+        // Else:
+        Terminal.terminal.Print("\"" + name + "\" is undefined.");
+        return (memory, null);
     }
+
 
     private static string ParseSubscript(string restOfCommand) {
 
