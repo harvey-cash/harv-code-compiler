@@ -3,21 +3,25 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Command
-{
+public class Command {
+
     // Run all commands in array of command strings
     public static (Dictionary<string, object>, object) Run(Dictionary<string, object> memory, string[] commands) {
         object result = null;
+        for (int i = 0; i < commands.Length; i++) {
+            (memory, result) = Run(memory, commands[i]);
+        }
+        return (memory, result);
+
+        /*
         try {
-            for (int i = 0; i < commands.Length; i++) {
-                (memory, result) = Run(memory, commands[i]);
-            }
-            return (memory, result);
+            
         } catch (Exception e) {
             Debug.LogError(e);
             Terminal.terminal.Print("Script terminated.");
             return (memory, null);
         }
+        */
     }
 
     // Run subscript on copy of memory, and remove changes to anything that wasn't defined in the outer scope
@@ -30,9 +34,22 @@ public class Command
     public static (Dictionary<string, object>, object) RunSubscript(Dictionary<string, object> memory, Dictionary<string, object> subMemory, string subscript) {
         string[] subCommands = ScriptParser.ParseCommandStrings(subscript);
 
-        object result;
-        (subMemory, result) = Run(subMemory, subCommands);
+        // We ignore whatever the runtime equates to, 
+        // and instead specifically look for the value of the "return" variable
+        (subMemory, _) = Run(subMemory, subCommands);
+        object result = ParseReturn(subMemory);
         return (ResolveSubScope(memory, subMemory), result);
+    }
+
+    // Look in the given memory for the value of "return"
+    public static object ParseReturn(Dictionary<string, object> memory) {
+        bool defined = memory.TryGetValue("return", out object value);
+        if (defined) {
+            return value;
+        }
+        else {
+            return null;
+        }
     }
 
     // Modify what already existed, forget all else
@@ -111,7 +128,8 @@ public class Command
             // The start of a method?
             if (c == '(') {
                 string methodName = buffer;
-                object[] parameters = ParseParameters(command.Substring(i + 1), memory);
+                // include open bracket for parsing parameters
+                object[] parameters = ParseParameters(command.Substring(i), memory);
                 string subscript = ParseSubscript(command.Substring(i + 1));
 
                 return LookupAndRun(memory, methodName, parameters, subscript);
@@ -150,17 +168,15 @@ public class Command
     }
 
 
-    private static string ParseSubscript(string restOfCommand) {
-
-        // skip to after close bracket
-        while (restOfCommand[0] != ')') {
-            restOfCommand = restOfCommand.Substring(1);
-        }
-        restOfCommand = restOfCommand.Substring(1);
-
-        // skip to first opening curly brace
+    private static string ParseSubscript(string restOfCommand) {        
         // if first thing after ) is not space then {, no subscript
         try {
+            // skip to after close bracket
+            while (restOfCommand[0] != ')') {
+                restOfCommand = restOfCommand.Substring(1);
+            }
+            restOfCommand = restOfCommand.Substring(1);
+            // skip to first opening curly brace
             while (restOfCommand[0] == ' ') {
                 restOfCommand = restOfCommand.Substring(1);
             }
@@ -190,23 +206,45 @@ public class Command
         return buffer.Substring(0, buffer.Length - 1);
     }
 
+    // Don't split on ','s within brackets! (Methods as parameters...)
     private static object[] ParseParameters(string restOfCommand, Dictionary<string,object> memory) {
-        string paramString = ParamsWithinBrackets(restOfCommand);
-        string[] paramStrings = paramString.Split(new char[] { ',' });
+        // Throw away start bracket
+        while (restOfCommand[0] != '(') {
+            restOfCommand = restOfCommand.Substring(1);
+        }
+        string paramString = restOfCommand.Substring(1);
+
+        List<string> paramsList = new List<string>();
+        string paramBuffer = "";
+        int depth = 0;
+        for (int i = 0; i < paramString.Length; i++) {
+            char c = paramString[i];
+
+            if (c == '(') { depth++; }
+            if (c == ')') {
+                depth--;
+                if (depth < 0) { break; } // parameters ended
+            }
+
+            // outside of any sub-brackets
+            if (c == ',' && depth == 0) {
+                paramsList.Add(paramBuffer);
+                paramBuffer = "";
+                continue;
+            }
+
+            paramBuffer += c;
+        }
+        if (paramBuffer.Length > 0) {
+            paramsList.Add(paramBuffer);
+        }        
+
+        string[] paramStrings = paramsList.ToArray();
         object[] parameters = new object[paramStrings.Length];
         for (int p = 0; p < parameters.Length; p++) {
             (memory, parameters[p]) = Run(memory, paramStrings[p]);
-        }
+        }        
+
         return parameters;
     }
-
-    // Will throw error if no ending bracket
-    private static string ParamsWithinBrackets(string restOfCommand) {
-        string paramBuffer = "";
-        while (restOfCommand[0] != ')') {
-            paramBuffer += restOfCommand[0];
-            restOfCommand = restOfCommand.Substring(1);
-        }
-        return paramBuffer;
-    }    
 }

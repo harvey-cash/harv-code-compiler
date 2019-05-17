@@ -3,8 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Library
-{
+public class Library {
+
     // Defined methods all follow this structure
     public delegate (Dictionary<string,object>, object) Method(
         Dictionary<string, object> memory, string name, object[] parameters, string subscript);    

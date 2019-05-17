@@ -4,8 +4,8 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using UnityEngine;
 
-public class ScriptParser
-{
+public class ScriptParser {
+    
     public static char[] ignoreChars = new char[] { '\t' };
 
     // We don't like spaces anywhere other than within string literals
