@@ -13,6 +13,8 @@ public class UserMethod {
             subMemory[method.paramNames[i]] = parameters[i];
         }
 
+        Debug.Log(method.subscript);
+
         return Command.RunSubscript(memory, subMemory, method.subscript);
     }
 

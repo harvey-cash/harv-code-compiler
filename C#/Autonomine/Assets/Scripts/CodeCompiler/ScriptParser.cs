@@ -69,6 +69,9 @@ public class ScriptParser {
                     listCommands.Add(bufferCommand);
                     bufferCommand = "";
                 }
+                if (withinSubscript) {
+                    bufferCommand += c;
+                }
                 continue;
             }
 
@@ -91,7 +94,6 @@ public class ScriptParser {
         for (int i = 0; i < listCommands.Count; i++) {
             if (listCommands[i].Substring(0,4) == "def~") {
                 string[] parameters = SplitParameters(listCommands[i]);
-                Debug.Log(ArrayToString(parameters));
 
                 string name = null;
 
@@ -110,7 +112,6 @@ public class ScriptParser {
                 methodDeclaration += ")";
 
                 listCommands[i] = methodDeclaration + listCommands[i].Substring(paramEndIndex);
-                Debug.Log(listCommands[i]);
             }
         }
 
