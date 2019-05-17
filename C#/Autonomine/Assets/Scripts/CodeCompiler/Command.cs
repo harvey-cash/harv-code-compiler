@@ -82,7 +82,7 @@ public class Command {
             return Run(memory, memory[command].ToString());
         }
 
-        // Else, statement or method of some sort
+        // Else, look for statement or method of some sort
 
         string buffer = "";
         for (int i = 0; i < command.Length; i++) {
@@ -207,39 +207,8 @@ public class Command {
     }
 
     // Don't split on ','s within brackets! (Methods as parameters...)
-    private static object[] ParseParameters(string restOfCommand, Dictionary<string,object> memory) {
-        // Throw away start bracket
-        while (restOfCommand[0] != '(') {
-            restOfCommand = restOfCommand.Substring(1);
-        }
-        string paramString = restOfCommand.Substring(1);
-
-        List<string> paramsList = new List<string>();
-        string paramBuffer = "";
-        int depth = 0;
-        for (int i = 0; i < paramString.Length; i++) {
-            char c = paramString[i];
-
-            if (c == '(') { depth++; }
-            if (c == ')') {
-                depth--;
-                if (depth < 0) { break; } // parameters ended
-            }
-
-            // outside of any sub-brackets
-            if (c == ',' && depth == 0) {
-                paramsList.Add(paramBuffer);
-                paramBuffer = "";
-                continue;
-            }
-
-            paramBuffer += c;
-        }
-        if (paramBuffer.Length > 0) {
-            paramsList.Add(paramBuffer);
-        }        
-
-        string[] paramStrings = paramsList.ToArray();
+    private static object[] ParseParameters(string restOfCommand, Dictionary<string,object> memory) {        
+        string[] paramStrings = ScriptParser.SplitParameters(restOfCommand);
         object[] parameters = new object[paramStrings.Length];
         for (int p = 0; p < parameters.Length; p++) {
             (memory, parameters[p]) = Run(memory, paramStrings[p]);

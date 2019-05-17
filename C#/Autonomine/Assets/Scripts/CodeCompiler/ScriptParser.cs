@@ -246,4 +246,15 @@ public class ScriptParser {
         }
         return paramsList.ToArray();
     }
+
+    public static string ArrayToString(string[] array) {
+        string buffer = "";
+        if (array.Length > 0) {            
+            for (int i = 0; i < array.Length - 1; i++) {
+                buffer += array[i] + ",";
+            }
+            buffer += array[array.Length-1];
+        }
+        return buffer;        
+    }
 }
