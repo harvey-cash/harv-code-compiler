@@ -25,9 +25,7 @@ public class Library {
 
     public static Method If = (memory, name, parameters, subscript) => {
         // if only takes one parameter, which equates to a bool
-        bool successfulCast = bool.TryParse(parameters[0] as string, out bool result);
-
-        if (result) {
+        if ((bool)parameters[0]) {
             return Command.RunSubscript(memory, subscript);
         }
         else {

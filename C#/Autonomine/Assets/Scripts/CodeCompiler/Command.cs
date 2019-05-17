@@ -7,21 +7,17 @@ public class Command {
 
     // Run all commands in array of command strings
     public static (Dictionary<string, object>, object) Run(Dictionary<string, object> memory, string[] commands) {
-        object result = null;
-        for (int i = 0; i < commands.Length; i++) {
-            (memory, result) = Run(memory, commands[i]);
-        }
-        return (memory, result);
-
-        /*
         try {
-            
+            object result = null;
+            for (int i = 0; i < commands.Length; i++) {
+                (memory, result) = Run(memory, commands[i]);
+            }
+            return (memory, result);
         } catch (Exception e) {
             Debug.LogError(e);
             Terminal.terminal.Print("Script terminated.");
             return (memory, null);
         }
-        */
     }
 
     // Run subscript on copy of memory, and remove changes to anything that wasn't defined in the outer scope
@@ -81,12 +77,21 @@ public class Command {
             out string left, out string opstr, out string right)) {
             
             ScriptParser.IsOperator(opstr, out bool isBool);
-            object leftSide, rightSide;
-            (memory, leftSide) = Run(memory, left);
-            (memory, rightSide) = Run(memory, right);
+            object leftObj, rightObj;
+            (memory, leftObj) = Run(memory, left);
+            (memory, rightObj) = Run(memory, right);
 
-            if (isBool) { ScriptParser.BoolOperator op = ScriptParser.BoolOp(opstr); return (memory, op((float)leftSide, (float)rightSide)); }
-            else { ScriptParser.FloatOperator op = ScriptParser.FloatOp(opstr); return (memory, op((float)leftSide, (float)rightSide)); }
+            float leftEval = (float)leftObj;
+            float rightEval = (float)rightObj;
+
+            if (isBool) {
+                ScriptParser.BoolOperator op = ScriptParser.BoolOp(opstr);
+                return (memory, op(leftEval, rightEval));
+            }
+            else {
+                ScriptParser.FloatOperator op = ScriptParser.FloatOp(opstr);
+                return (memory, op(leftEval, rightEval));
+            }
         }
         // Name of something in memory, evaluate and return it
         if (memory.ContainsKey(command)) {
@@ -99,41 +104,10 @@ public class Command {
         for (int i = 0; i < command.Length; i++) {
             char c = command[i];
 
-
-            // At least two characters left to play with
-            if (command.Length > i+1) {
-                string c2 = command[i + 1].ToString();
-
-                // Next two form an operator
-                if (ScriptParser.IsOperator(c + c2, out bool twoMakeBool)) {
-                    object p1, p2;
-                    (memory, p1) = Run(memory, buffer);
-                    (memory, p2) = Run(memory, command.Substring(i + 2));
-
-                    if (twoMakeBool) { ScriptParser.BoolOperator op = ScriptParser.BoolOp(c + c2); return (memory, op((float)p1, (float)p2)); }
-                    else { ScriptParser.FloatOperator op = ScriptParser.FloatOp(c + c2); return (memory, op((float)p1, (float)p2)); }
-                }
-
-                // Else, this is an assignment command
-                if (c == '=' && ScriptParser.IsAlphaNumeric(c2)) {
-                    (memory, memory[buffer]) = Run(memory, command.Substring(i + 1));
-                    return (memory, memory[buffer]);
-                }
-            }
-
-            // Else, this one alone forms an operator
-            if (ScriptParser.IsOperator(c, out bool isBool)) {
-                object p1, p2;
-                (memory, p1) = Run(memory, buffer);
-                (memory, p2) = Run(memory, command.Substring(i + 1));
-                
-                if (isBool) { ScriptParser.BoolOperator op = ScriptParser.BoolOp(c); return (memory, op((float)p1, (float)p2)); }
-                else { ScriptParser.FloatOperator op = ScriptParser.FloatOp(c); return (memory, op((float)p1, (float)p2)); }                
-            }
-
-            // Else, if '=' alone, this code is wrong
+            // Value assignment
             if (c == '=') {
-                throw new Exception();
+                (memory, memory[buffer]) = Run(memory, command.Substring(i + 1));
+                return (memory, memory[buffer]);
             }
 
             // Else neither an assignment nor a simple statement
@@ -165,6 +139,7 @@ public class Command {
         // Built-in method?
         bool provided = Library.methods.TryGetValue(name, out Library.Method Method);        
         if (provided) {
+            //Debug.Log(subscript);
             return Method(memory, name, parameters, subscript);
         }
 
@@ -180,42 +155,27 @@ public class Command {
     }
 
 
-    private static string ParseSubscript(string restOfCommand) {        
-        // if first thing after ) is not space then {, no subscript
-        try {
-            // skip to after close bracket
-            while (restOfCommand[0] != ')') {
-                restOfCommand = restOfCommand.Substring(1);
-            }
-            restOfCommand = restOfCommand.Substring(1);
-            // skip to first opening curly brace
-            while (restOfCommand[0] == ' ') {
-                restOfCommand = restOfCommand.Substring(1);
-            }
-            if (!(restOfCommand[0] == '{')) { throw new Exception(); }
-        }
-        // no subscript
-        catch {
-            return null;
-        }
-
-        restOfCommand = restOfCommand.Substring(1);
+    private static string ParseSubscript(string restOfCommand) {
         // record inside brace until close brace of same level
         string buffer = "";
-        int depth = 1;
-        for (int i = 0; i < restOfCommand.Length; i++) {
-            buffer += restOfCommand[i];
+        int depth = 0;
 
-            if (restOfCommand[i] == '{') { depth++; }
-            if (restOfCommand[i] == '}') {
-                depth--;
-                if (depth < 1) {
-                    break;
-                }
+        for (int i = 0; i < restOfCommand.Length; i++) {
+            char c = restOfCommand[i];
+
+            if (c == '{') {                
+                if (depth == 0) { depth++; continue; } // Ignore first open curly brace
+                else { depth++; }
             }
+            if (c == '}') {
+                depth--;
+                if (depth == 0) { return buffer; } // Last curly close brace, return
+            }
+
+            // If within substring, add to buffer
+            if (depth > 0) { buffer += c; }
         }
-        // Ignore last outer brace
-        return buffer.Substring(0, buffer.Length - 1);
+        return null;
     }
 
     // Don't split on ','s within brackets! (Methods as parameters...)
