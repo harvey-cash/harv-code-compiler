@@ -142,6 +142,7 @@ public class ScriptParser {
         throw new Exception();
     }
 
+    public static bool IsAlphaNumeric(char c) { return IsAlphaNumeric(c.ToString()); }
     public static bool IsAlphaNumeric(string word) {
         Regex r = new Regex("^[a-zA-Z0-9]*$");
         return r.IsMatch(word);
@@ -155,11 +156,94 @@ public class ScriptParser {
         return word[0] == '\"';
     }
 
+    // look through characters until an operator is reached
+    // buffer the operator, check it actually is one
+    // return either side
+    // beware of strings with operations inside them...
+    public static bool IsOperationStatement(string statement, 
+        out string left, out string opstr, out string right) {
+        
+        bool withinOp = false;
+        string buffer = "";
+
+        for (int i = 0; i < statement.Length; i++) {
+            char c = statement[i];
+
+            // Start of something non-alphanumeric
+            if (!withinOp && !IsAlphaNumeric(c)) {
+                buffer += c;
+                withinOp = true;
+                continue;
+            }
+
+            // Continuation of something...
+            if (withinOp) {
+                if (!IsAlphaNumeric(c)) {
+                    buffer += c;
+                    continue;
+                }
+                else {
+                    if (IsOperator(buffer, out _)) {
+                        opstr = buffer;
+                        left = statement.Substring(0, i - opstr.Length);
+                        right = statement.Substring(i);
+                        return true;
+                    }
+                    else {
+                        left = null;
+                        right = null;
+                        opstr = null;
+                        return false;
+                    }
+                }
+            }
+        }
+
+        left = null;
+        right = null;
+        opstr = null;
+        return false;
+    }
+
     public static string MemoryString(Dictionary<string, object> memory) {
         string buffer = "";
         foreach (KeyValuePair<string, object> kvp in memory) {
             buffer += kvp.ToString() + ",";
         }
         return buffer;
+    }
+
+    // Step through parameters from first bracket (which must be there!) until final
+    public static string[] SplitParameters(string restOfCommand) {
+        while (restOfCommand[0] != '(') {
+            restOfCommand = restOfCommand.Substring(1);
+        }
+        string paramString = restOfCommand.Substring(1);
+
+        List<string> paramsList = new List<string>();
+        string paramBuffer = "";
+        int depth = 0;
+        for (int i = 0; i < paramString.Length; i++) {
+            char c = paramString[i];
+
+            if (c == '(') { depth++; }
+            if (c == ')') {
+                depth--;
+                if (depth < 0) { break; } // parameters ended
+            }
+
+            // outside of any sub-brackets
+            if (c == ',' && depth == 0) {
+                paramsList.Add(paramBuffer);
+                paramBuffer = "";
+                continue;
+            }
+
+            paramBuffer += c;
+        }
+        if (paramBuffer.Length > 0) {
+            paramsList.Add(paramBuffer);
+        }
+        return paramsList.ToArray();
     }
 }
