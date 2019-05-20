@@ -42,11 +42,37 @@ public class Library {
         return (memory, null);
     };
 
+    public static Method For = (memory, name, parameters, subscript) => {
+
+        string variable = (string)parameters[0];
+        int start = Mathf.RoundToInt((float)parameters[1]);
+        int end = Mathf.RoundToInt((float)parameters[2]);
+
+        Dictionary<string, object> subMemory = new Dictionary<string, object>(memory);
+
+        for (int i = start; i <= end; i++) {
+            subMemory[variable] = i;
+            (memory, _) = Command.RunSubscript(memory, subMemory, subscript);
+        }
+        return (memory, null);
+    };
+
     // Harvey-defined methods
     public static Dictionary<string, Method> methods = new Dictionary<string, Method>() {
         { "print", Print },
         { "if", If },
-        { "def", Def }
+        { "def", Def },
+        { "for", For }
     };
 
+    /*
+    // WHILE REQUIRES RE-EVALUATING PARAMETERS
+    public static Method While = (memory, name, parameters, subscript) => {
+        object result = null;
+        while ((bool)parameters[0]) {
+            (memory, result) = Command.RunSubscript(memory, subscript);
+        }
+        return (memory, result);
+    };
+    */
 }

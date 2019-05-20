@@ -113,6 +113,22 @@ public class ScriptParser {
 
                 listCommands[i] = methodDeclaration + listCommands[i].Substring(paramEndIndex);
             }
+
+            if (listCommands[i].Substring(0, 4) == "for(") {
+                string[] parameters = SplitParameters(listCommands[i]);
+                string decl = parameters[0];
+                string variable = "";
+                int index = 6;
+                while(decl[0] != '=') {
+                    index++;
+                    variable += decl[0];
+                    decl = decl.Substring(1);
+                }
+                string start = decl.Substring(1);
+
+                listCommands[i] = "for(\"" + variable + "\"," + start + listCommands[i].Substring(index);
+                Debug.Log(listCommands[i]);
+            }
         }
 
         return listCommands.ToArray();
@@ -314,11 +330,11 @@ public class ScriptParser {
         return paramsList.ToArray();
     }
 
-    public static string ArrayToString(string[] array) {
+    public static string ArrayToString(object[] array) {
         string buffer = "";
         if (array.Length > 0) {            
             for (int i = 0; i < array.Length - 1; i++) {
-                buffer += array[i] + ",";
+                buffer += array[i].ToString() + ", ";
             }
             buffer += array[array.Length-1];
         }

@@ -7,6 +7,12 @@ public class Command {
 
     // Run all commands in array of command strings
     public static (Dictionary<string, object>, object) Run(Dictionary<string, object> memory, string[] commands) {
+        object result = null;
+        for (int i = 0; i < commands.Length; i++) {
+            (memory, result) = Run(memory, commands[i]);
+        }
+        return (memory, result);
+        /*
         try {
             object result = null;
             for (int i = 0; i < commands.Length; i++) {
@@ -18,6 +24,7 @@ public class Command {
             Terminal.terminal.Print("Script terminated.");
             return (memory, null);
         }
+        */
     }
 
     // Run subscript on copy of memory, and remove changes to anything that wasn't defined in the outer scope
