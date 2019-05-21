@@ -75,7 +75,10 @@ public class Command {
 
     // Run a command string
     public static (Dictionary<string, object>, object) Run(Dictionary<string, object> memory, string command) {
-        //Debug.Log(command);
+        // if entirely in brackets, strip away and look inside
+        if (ScriptParser.AllInBrackets(command)) {
+            return Run(memory, command.Substring(1, command.Length - 2));
+        }
 
         // Base case, evaluates to literal
         if (ScriptParser.IsNumber(command)) {
@@ -88,7 +91,6 @@ public class Command {
         // Assign right hand side to memory space...
         if (ScriptParser.IsAssignment(command,
             out string name, out string value)) {
-            Debug.Log("is an assignment!");
 
             (memory, memory[name]) = Run(memory, value);
             return (memory, memory[name]);

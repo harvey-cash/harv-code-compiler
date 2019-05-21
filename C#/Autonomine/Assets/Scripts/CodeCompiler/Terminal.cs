@@ -22,7 +22,7 @@ public class Terminal : MonoBehaviour
             Print("> " + input.text);
 
             string[] commands = ScriptParser.ParseCommandStrings(input.text);
-            Command.Run(memory, commands);
+            (memory, _) = Command.Run(memory, commands);
 
             input.text = "";
             //input.ActivateInputField();

@@ -57,12 +57,28 @@ public class Library {
         return (memory, null);
     };
 
+    public static Method Sin = (memory, name, parameters, subscript) => {
+        float param = (float)parameters[0];
+        return (memory, Mathf.Sin(param));
+    };
+    public static Method Cos = (memory, name, parameters, subscript) => {
+        float param = (float)parameters[0];
+        return (memory, Mathf.Cos(param));
+    };
+    public static Method Tan = (memory, name, parameters, subscript) => {
+        float param = (float)parameters[0];
+        return (memory, Mathf.Tan(param));
+    };
+
     // Harvey-defined methods
     public static Dictionary<string, Method> methods = new Dictionary<string, Method>() {
         { "print", Print },
         { "if", If },
         { "def", Def },
-        { "for", For }
+        { "for", For },
+        { "sin", Sin },
+        { "cos", Cos },
+        { "tan", Tan }
     };
 
     /*

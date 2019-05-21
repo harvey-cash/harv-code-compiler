@@ -205,6 +205,7 @@ public class ScriptParser {
     }
 
     public static bool IsStringLiteral(string word) {
+        if (word.Length < 1) { return false; }
         return word[0] == '\"';
     }
 
@@ -216,8 +217,8 @@ public class ScriptParser {
 
         for (int i = 0; i < statement.Length; i++) {
             if (statement[i] == '=') {
-                if (IsAlphaNumeric(statement[i+1])) {
-                    name = statement.Substring(0, i - 1);
+                if (statement[i + 1] == '(' || IsAlphaNumeric(statement[i+1])) {
+                    name = statement.Substring(0, i);
                     value = statement.Substring(i + 1);
                     return true;
                 }
@@ -230,6 +231,32 @@ public class ScriptParser {
             }
         }
         return false;
+    }
+
+    public static bool AllInBrackets(string statement) {
+        if (statement.Length < 1) { return false; }
+
+        if (statement[0] != '(' || statement[statement.Length-1] != ')') {
+            return false;
+        }
+        string stripped = statement.Substring(1, statement.Length - 2);
+
+        int depth = 1;
+        bool withinString = false;
+        for (int i = 0; i < stripped.Length; i++) {
+            char c = stripped[i];
+
+            if (c == '(' || c == '{') { depth++; }
+            if (c == ')' || c == '}') { depth--; }
+            if (c == '"') { withinString = !withinString; }
+
+            // broke the surface... that's not allowed!
+            if (depth < 1) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     // Must only be called for valid opstrings
@@ -260,7 +287,6 @@ public class ScriptParser {
             int p = GetPrecedence(op);
 
             if (p > indexPrecedence.Item2) {
-                Debug.Log("component: " + op + ", p: " + p);
                 indexPrecedence = (i, p);
             }
         }
@@ -271,39 +297,30 @@ public class ScriptParser {
     // if so, return components
     public static bool ParseEquation(string statement,
         out string left, out string opstr, out string right) {
-
-        // if entirely in brackets, look inside
-        if (statement[0] == '(' && statement[statement.Length-1] == ')') {
-            return ParseEquation(statement.Substring(1, statement.Length - 2),
-                out left, out opstr, out right);
-        }
-
-        // MUST BE: var, op, var, ..., op
-        string[] components = GetEquationComponents(statement);
-        Debug.Log(ArrayToString(components));
-
-        int index;
+        
         try {
-            index = GetMaxPrecedence(components);
+            string[] components = GetEquationComponents(statement);
+
+            int index = GetMaxPrecedence(components);
+
+            opstr = components[index];
+            left = "";
+            for (int i = 0; i < index; i++) {
+                left += components[i];
+            }
+            right = "";
+            for (int i = index + 1; i < components.Length; i++) {
+                right += components[i];
+            }
+
+            return true;
+
         } catch (Exception e) {
-            Debug.Log(e);
             left = null;
             opstr = null;
             right = null;
             return false;
         }
-
-        opstr = components[index];
-        left = "";
-        for (int i = 0; i < index; i++) {
-            left += components[i];
-        }
-        right = "";
-        for (int i = index+1; i < components.Length; i++) {
-            right += components[i];
-        }
-
-        return true;
     }
 
     // MUST BE: var, (op, var)+
@@ -348,6 +365,11 @@ public class ScriptParser {
             }
         }
         components.Add(buffer);
+
+        for (int i = 0; i < components.Count; i++) {
+            if (components[i].Length < 1) { throw new Exception(); }
+        }
+
         return components.ToArray();
     }
     

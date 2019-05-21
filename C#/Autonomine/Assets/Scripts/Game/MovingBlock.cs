@@ -12,17 +12,17 @@ public class MovingBlock : MonoBehaviour
     public static Library.Method MoveBlock = (memory, name, parameters, subscript) => {
 
         if (!block.turnTaken) {
-            int x = Mathf.RoundToInt((float)parameters[0]);
-            int z = Mathf.RoundToInt((float)parameters[1]);
+            float x = (float)parameters[0];
+            float z = (float)parameters[1];
 
-            block.Move(new Vector2Int(x, z));
+            block.Move(new Vector2(x, z));
         }
         block.turnTaken = true;
 
         return (memory, null);
     };
 
-    public void Move(Vector2Int dir) {
+    public void Move(Vector2 dir) {
         transform.Translate(new Vector3(dir.x, 0, dir.y));
     }
 
@@ -33,13 +33,13 @@ public class MovingBlock : MonoBehaviour
 
     private void Start() {
         memory = new Dictionary<string, object>();
-        InvokeRepeating("OnTurn", 1, 1);
+        InvokeRepeating("OnTurn", 0.05f, 0.05f);
     }
 
     private void OnTurn() {
         block.turnTaken = false;        
-        memory["xPos"] = Mathf.Round(transform.position.x);
-        memory["zPos"] = Mathf.Round(transform.position.z);
+        memory["xPos"] = transform.position.x;
+        memory["zPos"] = transform.position.z;
         (memory, _) = Command.Run(memory, commands);
     }
 }
