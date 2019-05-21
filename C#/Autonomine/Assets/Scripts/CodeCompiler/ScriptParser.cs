@@ -92,7 +92,7 @@ public class ScriptParser {
     // method name and parameter names
     private static string[] RewordDefs(List<string> listCommands) {
         for (int i = 0; i < listCommands.Count; i++) {
-            if (listCommands[i].Substring(0,4) == "def~") {
+            if (listCommands[i].Length > 4 && listCommands[i].Substring(0,4) == "def~") {
                 string[] parameters = SplitParameters(listCommands[i]);
 
                 string name = null;
@@ -114,7 +114,7 @@ public class ScriptParser {
                 listCommands[i] = methodDeclaration + listCommands[i].Substring(paramEndIndex);
             }
 
-            if (listCommands[i].Substring(0, 4) == "for(") {
+            if (listCommands[i].Length > 4 && listCommands[i].Substring(0, 4) == "for(") {
                 string[] parameters = SplitParameters(listCommands[i]);
                 string decl = parameters[0];
                 string variable = "";
@@ -134,7 +134,8 @@ public class ScriptParser {
         return listCommands.ToArray();
     }
 
-
+    public static bool IsOperator(string opstr) { return IsOperator(opstr, out bool isBool); }
+    public static bool IsOperator(char c) { return IsOperator(c.ToString(), out bool isBool); }
     public static bool IsOperator(char c, out bool isBool) { return IsOperator(c.ToString(), out isBool); }
     public static bool IsOperator(string opstr, out bool isBool) {
         try {
@@ -207,64 +208,149 @@ public class ScriptParser {
         return word[0] == '\"';
     }
 
-    // look through characters until an operator is reached
-    // buffer the operator, check it actually is one
-    // return either side
-    // beware of strings with operations inside them...
-    public static bool IsOperationStatement(string statement, 
+    // Check whether statement is an assignment
+    public static bool IsAssignment(string statement,
+        out string name, out string value) {
+        name = null;
+        value = null;
+
+        for (int i = 0; i < statement.Length; i++) {
+            if (statement[i] == '=') {
+                if (IsAlphaNumeric(statement[i+1])) {
+                    name = statement.Substring(0, i - 1);
+                    value = statement.Substring(i + 1);
+                    return true;
+                }
+                else {                    
+                    return false;
+                }
+            }
+            else if (!IsAlphaNumeric(statement[i])) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    // Must only be called for valid opstrings
+    public static int GetPrecedence(string opstr) {
+        if (!IsOperator(opstr, out bool isBool)) { throw new Exception(); }
+
+        // bools have highest precedence
+        if (isBool) { return 3; }
+
+        if (opstr.Equals("^")) { return 2; }
+        if (opstr.Equals("*") || opstr.Equals("/") || opstr.Equals("%")) { return 1; }
+        
+        else {
+            return 0;
+        }
+    }
+
+    private static int GetMaxPrecedence(string[] components) {
+        int opCount = Mathf.FloorToInt(components.Length / 2);
+        if (opCount == 0) { throw new Exception(); }
+
+        // index, precedence
+        (int, int) indexPrecedence = (-1, -1);
+
+        for (int j = 0; j < opCount; j++) {
+            int i = (j * 2) + 1;
+            string op = components[i];
+            int p = GetPrecedence(op);
+
+            if (p > indexPrecedence.Item2) {
+                Debug.Log("component: " + op + ", p: " + p);
+                indexPrecedence = (i, p);
+            }
+        }
+        return indexPrecedence.Item1;
+    }
+
+    // Return true if valid equation
+    // if so, return components
+    public static bool ParseEquation(string statement,
         out string left, out string opstr, out string right) {
 
+        // if entirely in brackets, look inside
+        if (statement[0] == '(' && statement[statement.Length-1] == ')') {
+            return ParseEquation(statement.Substring(1, statement.Length - 2),
+                out left, out opstr, out right);
+        }
+
+        // MUST BE: var, op, var, ..., op
+        string[] components = GetEquationComponents(statement);
+        Debug.Log(ArrayToString(components));
+
+        int index;
+        try {
+            index = GetMaxPrecedence(components);
+        } catch (Exception e) {
+            Debug.Log(e);
+            left = null;
+            opstr = null;
+            right = null;
+            return false;
+        }
+
+        opstr = components[index];
+        left = "";
+        for (int i = 0; i < index; i++) {
+            left += components[i];
+        }
+        right = "";
+        for (int i = index+1; i < components.Length; i++) {
+            right += components[i];
+        }
+
+        return true;
+    }
+
+    // MUST BE: var, (op, var)+
+    private static string[] GetEquationComponents(string statement) {
         int depth = 0;
-        bool withinOp = false;
-        string opBuffer = "";
+        bool withinString = false;
+        List<string> components = new List<string>();
+        string buffer = "";
 
         for (int i = 0; i < statement.Length; i++) {
             char c = statement[i];
 
-            // only concern ourselves with operators
-            // outside of parameters
-            if (c == '(') { depth++; continue; }
-            if (c == ')') { depth--; continue; }
-            if (depth != 0) {
+            if (c == '(' || c == '{') { depth++; }
+            if (c == ')' || c == '}') { depth--; }
+            if (c == '"') { withinString = !withinString; }
+
+            // if (depth > 0 || withinString) { continue; }
+
+            if (depth > 0 || withinString) {
+                buffer += c;
                 continue;
             }
 
-            // Start of something non-alphanumeric
-            if (!withinOp && !IsAlphaNumeric(c)) {
-                opBuffer += c;
-                withinOp = true;
+            // this and next form an operator
+            if (i < statement.Length - 1 && IsOperator(c.ToString() + statement[i + 1])) {
+                components.Add(buffer); //var
+                components.Add(c.ToString() + statement[i + 1]); //op
+                buffer = "";
+                i++; // skip next
                 continue;
             }
-
-            // Continuation of something...
-            if (withinOp) {
-                if (!IsAlphaNumeric(c)) {
-                    opBuffer += c;
-                    continue;
-                }
-                else {
-                    if (IsOperator(opBuffer, out _)) {
-                        opstr = opBuffer;
-                        left = statement.Substring(0, i - opstr.Length);
-                        right = statement.Substring(i);
-                        return true;
-                    }
-                    else {
-                        left = null;
-                        right = null;
-                        opstr = null;
-                        return false;
-                    }
-                }
+            // just this forms an operator
+            else if (IsOperator(c)) {
+                components.Add(buffer);
+                components.Add(c.ToString());
+                buffer = "";
+                continue;
+            }
+            // regular surface alphanumeric letter
+            else {
+                buffer += c;
             }
         }
-
-        left = null;
-        right = null;
-        opstr = null;
-        return false;
+        components.Add(buffer);
+        return components.ToArray();
     }
-
+    
     public static string MemoryString(Dictionary<string, object> memory) {
         string buffer = "";
         foreach (KeyValuePair<string, object> kvp in memory) {

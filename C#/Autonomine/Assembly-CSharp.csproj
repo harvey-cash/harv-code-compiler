@@ -69,6 +69,7 @@
     <Compile Include="Assets\Scripts\CodeCompiler\Terminal.cs" />
     <Compile Include="Assets\Scripts\CodeCompiler\UserMethod.cs" />
     <Compile Include="Assets\Scripts\Config.cs" />
+    <Compile Include="Assets\Scripts\Game\MovingBlock.cs" />
     <Reference Include="Unity.Timeline.Editor">
       <HintPath>D:/GitRepos/harv-code-compiler/C#/Autonomine/Library/ScriptAssemblies/Unity.Timeline.Editor.dll</HintPath>
     </Reference>

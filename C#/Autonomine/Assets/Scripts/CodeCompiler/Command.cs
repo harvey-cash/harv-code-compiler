@@ -7,6 +7,10 @@ public class Command {
 
     // Run all commands in array of command strings
     public static (Dictionary<string, object>, object) Run(Dictionary<string, object> memory, string[] commands) {
+        if (!(commands != null && commands.Length > 0)) {
+            return (memory, null);
+        }
+
         object result = null;
         for (int i = 0; i < commands.Length; i++) {
             (memory, result) = Run(memory, commands[i]);
@@ -71,6 +75,7 @@ public class Command {
 
     // Run a command string
     public static (Dictionary<string, object>, object) Run(Dictionary<string, object> memory, string command) {
+        //Debug.Log(command);
 
         // Base case, evaluates to literal
         if (ScriptParser.IsNumber(command)) {
@@ -79,10 +84,20 @@ public class Command {
         if (ScriptParser.IsStringLiteral(command)) {
             return (memory, command.Substring(1, command.Length - 2));
         }
-        // Operator statement
-        if (ScriptParser.IsOperationStatement(command, 
+
+        // Assign right hand side to memory space...
+        if (ScriptParser.IsAssignment(command,
+            out string name, out string value)) {
+            Debug.Log("is an assignment!");
+
+            (memory, memory[name]) = Run(memory, value);
+            return (memory, memory[name]);
+        }
+
+        // Check if its an equation, and run BODMAS over it!
+        if (ScriptParser.ParseEquation(command,
             out string left, out string opstr, out string right)) {
-            
+
             ScriptParser.IsOperator(opstr, out bool isBool);
             object leftObj, rightObj;
             (memory, leftObj) = Run(memory, left);
@@ -100,6 +115,7 @@ public class Command {
                 return (memory, op(leftEval, rightEval));
             }
         }
+
         // Name of something in memory, evaluate and return it
         if (memory.ContainsKey(command)) {
             return Run(memory, memory[command].ToString());
@@ -111,13 +127,6 @@ public class Command {
         for (int i = 0; i < command.Length; i++) {
             char c = command[i];
 
-            // Value assignment
-            if (c == '=') {
-                (memory, memory[buffer]) = Run(memory, command.Substring(i + 1));
-                return (memory, memory[buffer]);
-            }
-
-            // Else neither an assignment nor a simple statement
             // The start of a method?
             if (c == '(') {
                 string methodName = buffer;

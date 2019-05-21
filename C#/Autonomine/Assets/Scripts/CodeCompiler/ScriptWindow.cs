@@ -16,8 +16,12 @@ public class ScriptWindow : MonoBehaviour
         apply.onClick.AddListener(delegate {
 
             string[] commands = ScriptParser.ParseCommandStrings(input.text);
+            MovingBlock.block.commands = commands;
+
+            /*
             Command.Run(memory, commands);
             Debug.Log(ScriptParser.MemoryString(memory));
+            */
 
             input.ActivateInputField();
         });
