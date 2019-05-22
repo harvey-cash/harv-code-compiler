@@ -1,47 +1,60 @@
-# harv-code-compiler
-Compiling HarvCode, an original and simplistic programming language (somewhere between assembly and python), to run in Python and C#
+# SandSharp Language
+Intended for writing and running within games, Sand Sharp is somewhere between python
+and javascript in syntax, yet compiles to C# (python is on the way, though).
 
-As of V0.1, all variables and methods are global...
+`# SandSharp Example Script
 
-## Syntax
-1. All commands are as follows: "command a b ... c"
-2. Strictly one command per line
-3. 'Blocked' methods such as 'if' and 'def' terminate with "end"
-4. method bodies should be indented for readability, you monster.
+# SandSharp is space (' ') and tab agnostic
+# Commands are separated by newlines
+# Method lines don't NEED indentations, but its
+# obviously good style
 
-## Commands
-### set
-- set val = 10
-- set val_1 = val_2
+# Single command methods can go on one line
+def hello() { print("Hello World!") }
 
-### print
-- print 10
-- print val
-- print "Hello World"
+def run(func) {
+	# but generally you should use multiple lines
+	func()
+}
 
-## if
-- if a > b <br> print "a greater than b" <br> end
-- if a != b <br>	print "a not equal to b" <br> end
+# functions can be passed as parameters
+run(hello)
 
-## comment
-- // You can type anything here.
+# Anything after a '#' is ignored until the next newline
+# print("This isn't printed!")
 
-## calc
-- calc val = 2 * 5
-- calc c = a + b
+# variables are dynamically typed
+counter = 1
 
-## def
-- def increment <br> calc val = val + 1 <br> end
+while(counter <= 3) {
+	print("Counter: ", counter)
+	# (can't concatenate strings yet, but print() can
+	# take multiple arguments)
 
-## call
-- call increment
+	counter = counter + 1
+}
 
-## run
-- run "./file_name.hc"
+# Anything defined locally stays local
+def testLocalScope() {
+	p1 = 4
+	p2 = 5
 
-## check_exists
-- check_exists check_val variable
-- if check_val == 1 <br> print "variable exists!" <br> end
+	# methods can be defined within methods
+	# return doesn't exit control of the function
+	# and as such the notation uses '=' assignment
+	def average(a, b) {
+		return = (a + b) / 2
+	}
 
-## exit
-- exit
+	# method calls can be passed as parameters
+	print("Average of ", p1, " and ", p2, " = ", average(p1,p2))
+
+}
+
+testLocalScope()
+
+# p1 and p2 were defined locally, so...
+print(p1) # throws an error...
+
+# Which stops script execution!
+print("This won't get printed!")`

@@ -75,6 +75,7 @@ public class Command {
 
     // Run a command string
     public static (Dictionary<string, object>, object) Run(Dictionary<string, object> memory, string command) {
+
         // if entirely in brackets, strip away and look inside
         if (ScriptParser.AllInBrackets(command)) {
             return Run(memory, command.Substring(1, command.Length - 2));

@@ -20,63 +20,84 @@ public class ScriptParser {
 
         for (int i = 0; i < scriptString.Length; i++) {
             char c = scriptString[i];
+            // Skip over certain characters
             if (Array.Exists(ignoreChars, x => x == c)) {
                 continue;
             }
 
+            /* ~~~~~ WITHIN SUBSCRIPT ~~~~~ */
+
+            if (withinSubscript) {
+                // Increase depth
+                if (c == '{') { bufferCommand += c; depthSubscript++; continue; }
+
+                // Decrease depth
+                if (c == '}' && withinSubscript) {
+                    bufferCommand += c;
+                    depthSubscript--;
+                    // Broke the surface
+                    if (depthSubscript < 1) {
+                        listCommands.Add(bufferCommand);
+                        bufferCommand = "";
+                        withinSubscript = false;
+                    }
+                    continue;
+                }
+
+                // Otherwise, simply add to buffer
+                bufferCommand += c;
+                continue;
+            }
+
+            /* ~~~~~ NOT WITHIN SUBSCRIPT ~~~~~ */
+
             if (c == '"') {
                 withinStringLiteral = !withinStringLiteral;
             }
-            // Ignore spaces everywhere except within strings!
-            if (c == ' ' && !withinStringLiteral) {
+
+            /* ~~~~~ WITHIN STRING (NOT SUBSCRIPT) ~~~~~ */
+
+            if (withinStringLiteral) {
+                bufferCommand += c;
+                continue;
+            }
+
+            /* ~~~~~ NOT WITHIN STRING (NOR SUBSCRIPT) ~~~~~ */
+
+            // Comments use '#', ignore following until newline
+            if (c == '#') {
+                if (bufferCommand.Length > 0) { listCommands.Add(bufferCommand); }                
+                bufferCommand = "";
+                do { i++; } while (i < scriptString.Length-1 && scriptString[i+1] != '\n');
+                continue;
+            }
+            
+            // Ignore spaces, except to tell us about particular keywords
+            if (c == ' ') {
                 if (bufferCommand == "def") { bufferCommand += '~'; }
                 continue;
             }
 
             // Begin subscript
-            if (c == '{' && !withinSubscript) {
+            if (c == '{') {
                 bufferCommand += c;
                 depthSubscript++;
                 withinSubscript = true;
                 continue;
             }
 
-            // Within subscript, increase depth
-            if (c == '{' && withinSubscript) {
-                bufferCommand += c;
-                depthSubscript++;
-                continue;
-            }
-
-            // End subscript
-            if (c == '}' && withinSubscript) {
-                bufferCommand += c;
-                depthSubscript--;
-
-                // Broke the surface
-                if (depthSubscript < 1) {
-                    listCommands.Add(bufferCommand);
-                    bufferCommand = "";
-                    withinSubscript = false;
-                }
-
-                continue;
-            }
-
             // Split on line breaks
             if (c == '\n') {
-                if (!withinSubscript && bufferCommand.Length > 0) {
+                if (bufferCommand.Length > 0) {
                     listCommands.Add(bufferCommand);
                     bufferCommand = "";
-                }
-                if (withinSubscript) {
-                    bufferCommand += c;
                 }
                 continue;
             }
 
-            // Otherwise, simply add to buffer
+            // Anything else goes in the buffer
             bufferCommand += c;
+            continue;
         }
 
         // Final command
@@ -84,7 +105,7 @@ public class ScriptParser {
             listCommands.Add(bufferCommand);
         }
 
-        // Reword method declarations
+        // Reword method declarations before returning
         return RewordDefs(listCommands);
     }
 
