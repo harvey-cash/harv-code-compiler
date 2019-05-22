@@ -118,9 +118,9 @@ public class Command {
             }
         }
 
-        // Name of something in memory, evaluate and return it
+        // Name of something in memory, return it
         if (memory.ContainsKey(command)) {
-            return Run(memory, memory[command].ToString());
+            return (memory, memory[command]);
         }
 
         // Else, look for statement or method of some sort
@@ -136,7 +136,7 @@ public class Command {
                 string[] paramNames = ScriptParser.SplitParameters(command.Substring(i));
                 string subscript = ScriptParser.ParseSubscript(command.Substring(i + 1));
 
-                return LookupAndRun(memory, methodName, paramNames, subscript);
+                return LookupAndRun(out bool methodExists, memory, methodName, paramNames, subscript);
             }
 
             // Must just be some other letter or number!
@@ -151,24 +151,27 @@ public class Command {
     }
 
     // Look for a method to run. Error if it doesn't exist!
-    private static (Dictionary<string, object>, object) LookupAndRun(
+    private static (Dictionary<string, object>, object) LookupAndRun(out bool exists,
         Dictionary<string, object> memory, string name, string[] paramStrings, string subscript) {
 
         // Built-in method?
         bool provided = Library.methods.TryGetValue(name, out Library.Method Method);        
         if (provided) {
             //Debug.Log(subscript);
+            exists = true;
             return Method(memory, name, paramStrings, subscript);
         }
 
         // User-defined method?
         bool defined = memory.TryGetValue(name, out object method);
         if (defined) {
+            exists = true;
             return UserMethod.CallUserMethod(memory, (UserMethod)method, paramStrings);
         }
 
         // Else:
         Terminal.terminal.Print("\"" + name + "\" is undefined.");
+        exists = false;
         return (memory, null);
     }
 
