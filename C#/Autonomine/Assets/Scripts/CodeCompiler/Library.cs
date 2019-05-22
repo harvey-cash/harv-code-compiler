@@ -7,9 +7,11 @@ public class Library {
 
     // Defined methods all follow this structure
     public delegate (Dictionary<string,object>, object) Method(
-        Dictionary<string, object> memory, string name, object[] parameters, string subscript);    
+        Dictionary<string, object> memory, string name, string[] paramStrings, string subscript);    
 
-    public static Method Print = (memory, name, parameters, subscript) => {
+    public static Method Print = (memory, name, paramStrings, subscript) => {
+        object[] parameters = Command.EvaluateParameters(paramStrings, memory);
+
         string result = "";
         if (parameters.Length > 0) {
             for (int i = 0; i < parameters.Length - 1; i++) {
@@ -23,7 +25,8 @@ public class Library {
         return (memory, result);
     };
 
-    public static Method If = (memory, name, parameters, subscript) => {
+    public static Method If = (memory, name, paramStrings, subscript) => {
+        object[] parameters = Command.EvaluateParameters(paramStrings, memory);
         // if only takes one parameter, which equates to a bool
         if ((bool)parameters[0]) {
             return Command.RunSubscript(memory, subscript);
@@ -33,7 +36,8 @@ public class Library {
         }
     };
 
-    public static Method Def = (memory, name, parameters, subscript) => {
+    public static Method Def = (memory, name, paramStrings, subscript) => {
+        object[] parameters = Command.EvaluateParameters(paramStrings, memory);
         string[] restOfParameters = new string[parameters.Length-1];
         Array.Copy(parameters, 1, restOfParameters, 0, parameters.Length - 1);
 
@@ -42,7 +46,8 @@ public class Library {
         return (memory, null);
     };
 
-    public static Method For = (memory, name, parameters, subscript) => {
+    public static Method For = (memory, name, paramStrings, subscript) => {
+        object[] parameters = Command.EvaluateParameters(paramStrings, memory);
 
         string variable = (string)parameters[0];
         int start = Mathf.RoundToInt((float)parameters[1]);
@@ -57,15 +62,28 @@ public class Library {
         return (memory, null);
     };
 
-    public static Method Sin = (memory, name, parameters, subscript) => {
+    public static Method While = (memory, name, paramStrings, subscript) => {
+        object[] parameters = Command.EvaluateParameters(paramStrings, memory);
+        object result = null;
+        while ((bool)parameters[0]) {
+            (memory, result) = Command.RunSubscript(memory, subscript);
+            parameters = Command.EvaluateParameters(paramStrings, memory); // re-evaluate!
+        }
+        return (memory, result);
+    };
+
+    public static Method Sin = (memory, name, paramStrings, subscript) => {
+        object[] parameters = Command.EvaluateParameters(paramStrings, memory);
         float param = (float)parameters[0];
         return (memory, Mathf.Sin(param));
     };
-    public static Method Cos = (memory, name, parameters, subscript) => {
+    public static Method Cos = (memory, name, paramStrings, subscript) => {
+        object[] parameters = Command.EvaluateParameters(paramStrings, memory);
         float param = (float)parameters[0];
         return (memory, Mathf.Cos(param));
     };
-    public static Method Tan = (memory, name, parameters, subscript) => {
+    public static Method Tan = (memory, name, paramStrings, subscript) => {
+        object[] parameters = Command.EvaluateParameters(paramStrings, memory);
         float param = (float)parameters[0];
         return (memory, Mathf.Tan(param));
     };
@@ -76,19 +94,9 @@ public class Library {
         { "if", If },
         { "def", Def },
         { "for", For },
+        { "while", While },
         { "sin", Sin },
         { "cos", Cos },
         { "tan", Tan }
     };
-
-    /*
-    // WHILE REQUIRES RE-EVALUATING PARAMETERS
-    public static Method While = (memory, name, parameters, subscript) => {
-        object result = null;
-        while ((bool)parameters[0]) {
-            (memory, result) = Command.RunSubscript(memory, subscript);
-        }
-        return (memory, result);
-    };
-    */
 }

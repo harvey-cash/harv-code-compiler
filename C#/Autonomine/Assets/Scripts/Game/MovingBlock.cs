@@ -9,7 +9,8 @@ public class MovingBlock : MonoBehaviour
     Dictionary<string, object> memory;
 
     private bool turnTaken = false;
-    public static Library.Method MoveBlock = (memory, name, parameters, subscript) => {
+    public static Library.Method MoveBlock = (memory, name, paramStrings, subscript) => {
+        object[] parameters = Command.EvaluateParameters(paramStrings, memory);
 
         if (!block.turnTaken) {
             float x = (float)parameters[0];

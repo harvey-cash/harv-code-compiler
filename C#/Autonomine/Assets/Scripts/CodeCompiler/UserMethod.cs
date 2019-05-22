@@ -6,7 +6,8 @@ public class UserMethod {
 
     // Call user method
     public static (Dictionary<string, object>, object) CallUserMethod(
-        Dictionary<string, object> memory, UserMethod method, object[] parameters) {
+        Dictionary<string, object> memory, UserMethod method, string[] paramStrings) {
+        object[] parameters = Command.EvaluateParameters(paramStrings, memory);
 
         Dictionary<string, object> subMemory = new Dictionary<string, object>(memory);
         for (int i = 0; i < method.paramNames.Length; i++) {

@@ -133,10 +133,10 @@ public class Command {
             if (c == '(') {
                 string methodName = buffer;
                 // include open bracket for parsing parameters
-                object[] parameters = ParseParameters(command.Substring(i), memory);
+                string[] paramNames = ScriptParser.SplitParameters(command.Substring(i));
                 string subscript = ScriptParser.ParseSubscript(command.Substring(i + 1));
 
-                return LookupAndRun(memory, methodName, parameters, subscript);
+                return LookupAndRun(memory, methodName, paramNames, subscript);
             }
 
             // Must just be some other letter or number!
@@ -152,19 +152,19 @@ public class Command {
 
     // Look for a method to run. Error if it doesn't exist!
     private static (Dictionary<string, object>, object) LookupAndRun(
-        Dictionary<string, object> memory, string name, object[] parameters, string subscript) {
+        Dictionary<string, object> memory, string name, string[] paramStrings, string subscript) {
 
         // Built-in method?
         bool provided = Library.methods.TryGetValue(name, out Library.Method Method);        
         if (provided) {
             //Debug.Log(subscript);
-            return Method(memory, name, parameters, subscript);
+            return Method(memory, name, paramStrings, subscript);
         }
 
         // User-defined method?
         bool defined = memory.TryGetValue(name, out object method);
         if (defined) {
-            return UserMethod.CallUserMethod(memory, (UserMethod)method, parameters);
+            return UserMethod.CallUserMethod(memory, (UserMethod)method, paramStrings);
         }
 
         // Else:
@@ -173,13 +173,11 @@ public class Command {
     }
 
     // Don't split on ','s within brackets! (Methods as parameters...)
-    private static object[] ParseParameters(string restOfCommand, Dictionary<string,object> memory) {        
-        string[] paramStrings = ScriptParser.SplitParameters(restOfCommand);
+    public static object[] EvaluateParameters(string[] paramStrings, Dictionary<string,object> memory) {        
         object[] parameters = new object[paramStrings.Length];
         for (int p = 0; p < parameters.Length; p++) {
             (memory, parameters[p]) = Run(memory, paramStrings[p]);
-        }        
-
+        }
         return parameters;
     }
 }
