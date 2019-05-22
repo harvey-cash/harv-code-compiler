@@ -2,7 +2,7 @@
 Intended for writing and running within games, Sand Sharp is somewhere between python
 and javascript in syntax, yet compiles to C# (python is on the way, though).
 
-`# SandSharp Example Script
+``# SandSharp Example Script
 
 # SandSharp is space (' ') and tab agnostic
 # Commands are separated by newlines
@@ -57,4 +57,4 @@ testLocalScope()
 print(p1) # throws an error...
 
 # Which stops script execution!
-print("This won't get printed!")`
+print("This won't get printed!")``
