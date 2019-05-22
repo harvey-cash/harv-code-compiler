@@ -315,7 +315,7 @@ public class ScriptParser {
 
             return true;
 
-        } catch (Exception e) {
+        } catch {
             left = null;
             opstr = null;
             right = null;
