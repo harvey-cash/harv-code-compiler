@@ -6,15 +6,16 @@ public class UserMethod {
 
     // Call user method
     public static (Dictionary<string, object>, object) CallUserMethod(
+        Dictionary<string, Command.Method> methods,
         Dictionary<string, object> memory, UserMethod method, string[] paramStrings) {
-        object[] parameters = Command.EvaluateParameters(paramStrings, memory);
+        object[] parameters = Command.EvaluateParameters(methods, paramStrings, memory);
 
         Dictionary<string, object> subMemory = new Dictionary<string, object>(memory);
         for (int i = 0; i < method.paramNames.Length; i++) {
             subMemory[method.paramNames[i]] = parameters[i];
         }
 
-        return Command.RunSubscript(memory, subMemory, method.subscript);
+        return Command.RunSubscript(methods, memory, subMemory, method.subscript);
     }
 
     private string[] paramNames;

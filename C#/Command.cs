@@ -3,17 +3,23 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Command {
+public static class Command {
+
+    // A method takes in memory and returns modified memory + a result
+    public delegate (Dictionary<string, object>, object) Method(Dictionary<string, Method> methods, 
+        Dictionary<string, object> memory, string name, string[] paramStrings, string subscript);
 
     // Run all commands in array of command strings
-    public static (Dictionary<string, object>, object) Run(Dictionary<string, object> memory, string[] commands) {
+    public static (Dictionary<string, object>, object) Run(Dictionary<string, Method> methods,
+        Dictionary<string, object> memory, string[] commands) {
+
         if (!(commands != null && commands.Length > 0)) {
             return (memory, null);
         }
 
         object result = null;
         for (int i = 0; i < commands.Length; i++) {
-            (memory, result) = Run(memory, commands[i]);
+            (memory, result) = Run(methods, memory, commands[i]);
         }
         return (memory, result);
         /*
@@ -32,18 +38,20 @@ public class Command {
     }
 
     // Run subscript on copy of memory, and remove changes to anything that wasn't defined in the outer scope
-    public static (Dictionary<string, object>, object) RunSubscript(Dictionary<string, object> memory, string subscript) {
+    public static (Dictionary<string, object>, object) RunSubscript(Dictionary<string, Method> methods,
+        Dictionary<string, object> memory, string subscript) {
         Dictionary<string, object> subMemory = new Dictionary<string, object>(memory);
-        return RunSubscript(memory, subMemory, subscript);
+        return RunSubscript(methods, memory, subMemory, subscript);
     }
 
     // Run subscript on subMemory, and remove changes to anything that wasn't defined in the outer scope's memory
-    public static (Dictionary<string, object>, object) RunSubscript(Dictionary<string, object> memory, Dictionary<string, object> subMemory, string subscript) {
+    public static (Dictionary<string, object>, object) RunSubscript(Dictionary<string, Method> methods,
+        Dictionary<string, object> memory, Dictionary<string, object> subMemory, string subscript) {
         string[] subCommands = ScriptParser.ParseCommandStrings(subscript);
 
         // We ignore whatever the runtime equates to, 
         // and instead specifically look for the value of the "return" variable
-        (subMemory, _) = Run(subMemory, subCommands);
+        (subMemory, _) = Run(methods, subMemory, subCommands);
         object result = ParseReturn(subMemory);
         return (ResolveSubScope(memory, subMemory), result);
     }
@@ -74,11 +82,12 @@ public class Command {
     }
 
     // Run a command string
-    public static (Dictionary<string, object>, object) Run(Dictionary<string, object> memory, string command) {
+    public static (Dictionary<string, object>, object) Run(Dictionary<string, Method> methods,
+        Dictionary<string, object> memory, string command) {
 
         // if entirely in brackets, strip away and look inside
         if (ScriptParser.AllInBrackets(command)) {
-            return Run(memory, command.Substring(1, command.Length - 2));
+            return Run(methods, memory, command.Substring(1, command.Length - 2));
         }
 
         // Base case, evaluates to literal
@@ -93,7 +102,7 @@ public class Command {
         if (ScriptParser.IsAssignment(command,
             out string name, out string value)) {
 
-            (memory, memory[name]) = Run(memory, value);
+            (memory, memory[name]) = Run(methods, memory, value);
             return (memory, memory[name]);
         }
 
@@ -103,8 +112,8 @@ public class Command {
 
             ScriptParser.IsOperator(opstr, out bool isBool);
             object leftObj, rightObj;
-            (memory, leftObj) = Run(memory, left);
-            (memory, rightObj) = Run(memory, right);
+            (memory, leftObj) = Run(methods, memory, left);
+            (memory, rightObj) = Run(methods, memory, right);
 
             float leftEval = (float)leftObj;
             float rightEval = (float)rightObj;
@@ -137,7 +146,7 @@ public class Command {
                 string[] paramNames = ScriptParser.SplitParameters(command.Substring(i));
                 string subscript = ScriptParser.ParseSubscript(command.Substring(i + 1));
 
-                return LookupAndRun(out bool methodExists, memory, methodName, paramNames, subscript);
+                return LookupAndRun(methods, out bool methodExists, memory, methodName, paramNames, subscript);
             }
 
             // Must just be some other letter or number!
@@ -152,22 +161,22 @@ public class Command {
     }
 
     // Look for a method to run. Error if it doesn't exist!
-    private static (Dictionary<string, object>, object) LookupAndRun(out bool exists,
+    private static (Dictionary<string, object>, object) LookupAndRun(Dictionary<string, Method> methods,
+        out bool exists,
         Dictionary<string, object> memory, string name, string[] paramStrings, string subscript) {
 
         // Built-in method?
-        bool provided = Library.methods.TryGetValue(name, out Library.Method Method);        
-        if (provided) {
-            //Debug.Log(subscript);
+        bool builtIn = methods.TryGetValue(name, out Method method);        
+        if (builtIn) {
             exists = true;
-            return Method(memory, name, paramStrings, subscript);
+            return method(methods, memory, name, paramStrings, subscript);
         }
 
         // User-defined method?
-        bool defined = memory.TryGetValue(name, out object method);
+        bool defined = memory.TryGetValue(name, out object userMethod);
         if (defined) {
             exists = true;
-            return UserMethod.CallUserMethod(memory, (UserMethod)method, paramStrings);
+            return UserMethod.CallUserMethod(methods, memory, (UserMethod)userMethod, paramStrings);
         }
 
         // Else:
@@ -177,10 +186,12 @@ public class Command {
     }
 
     // Don't split on ','s within brackets! (Methods as parameters...)
-    public static object[] EvaluateParameters(string[] paramStrings, Dictionary<string,object> memory) {        
+    public static object[] EvaluateParameters(Dictionary<string, Method> methods,
+        string[] paramStrings, Dictionary<string,object> memory) {    
+        
         object[] parameters = new object[paramStrings.Length];
         for (int p = 0; p < parameters.Length; p++) {
-            (memory, parameters[p]) = Run(memory, paramStrings[p]);
+            (memory, parameters[p]) = Run(methods, memory, paramStrings[p]);
         }
         return parameters;
     }
