@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 
 public class ScriptParser {
-    
+
     public static char[] ignoreChars = new char[] { '\t' };
 
     // We don't like spaces anywhere other than within string literals
@@ -66,12 +66,12 @@ public class ScriptParser {
 
             // Comments use '#', ignore following until newline
             if (c == '#') {
-                if (bufferCommand.Length > 0) { listCommands.Add(bufferCommand); }                
+                if (bufferCommand.Length > 0) { listCommands.Add(bufferCommand); }
                 bufferCommand = "";
-                do { i++; } while (i < scriptString.Length-1 && scriptString[i+1] != '\n');
+                do { i++; } while (i < scriptString.Length - 1 && scriptString[i + 1] != '\n');
                 continue;
             }
-            
+
             // Ignore spaces, except to tell us about particular keywords
             if (c == ' ') {
                 if (bufferCommand == "def") { bufferCommand += '~'; }
@@ -113,7 +113,7 @@ public class ScriptParser {
     // method name and parameter names
     private static string[] RewordDefs(List<string> listCommands) {
         for (int i = 0; i < listCommands.Count; i++) {
-            if (listCommands[i].Length > 4 && listCommands[i].Substring(0,4) == "def~") {
+            if (listCommands[i].Length > 4 && listCommands[i].Substring(0, 4) == "def~") {
                 string[] parameters = SplitParameters(listCommands[i]);
 
                 string name = null;
@@ -122,7 +122,7 @@ public class ScriptParser {
                 for (int j = 4; j < listCommands[i].Length; j++) {
                     char c = listCommands[i][j];
 
-                    if (name == null && c == '(') { name = listCommands[i].Substring(4,j-4); }
+                    if (name == null && c == '(') { name = listCommands[i].Substring(4, j - 4); }
                     if (c == '{') { paramEndIndex = j; break; }
                 }
 
@@ -140,7 +140,7 @@ public class ScriptParser {
                 string decl = parameters[0];
                 string variable = "";
                 int index = 6;
-                while(decl[0] != '=') {
+                while (decl[0] != '=') {
                     index++;
                     variable += decl[0];
                     decl = decl.Substring(1);
@@ -238,12 +238,12 @@ public class ScriptParser {
 
         for (int i = 0; i < statement.Length; i++) {
             if (statement[i] == '=') {
-                if (statement[i + 1] == '(' || IsAlphaNumeric(statement[i+1])) {
+                if (statement[i + 1] == '(' || IsAlphaNumeric(statement[i + 1])) {
                     name = statement.Substring(0, i);
                     value = statement.Substring(i + 1);
                     return true;
                 }
-                else {                    
+                else {
                     return false;
                 }
             }
@@ -257,7 +257,7 @@ public class ScriptParser {
     public static bool AllInBrackets(string statement) {
         if (statement.Length < 1) { return false; }
 
-        if (statement[0] != '(' || statement[statement.Length-1] != ')') {
+        if (statement[0] != '(' || statement[statement.Length - 1] != ')') {
             return false;
         }
         string stripped = statement.Substring(1, statement.Length - 2);
@@ -289,7 +289,7 @@ public class ScriptParser {
 
         if (opstr.Equals("^")) { return 2; }
         if (opstr.Equals("*") || opstr.Equals("/") || opstr.Equals("%")) { return 1; }
-        
+
         else {
             return 0;
         }
@@ -318,7 +318,7 @@ public class ScriptParser {
     // if so, return components
     public static bool ParseEquation(string statement,
         out string left, out string opstr, out string right) {
-        
+
         try {
             string[] components = GetEquationComponents(statement);
 
@@ -393,11 +393,18 @@ public class ScriptParser {
 
         return components.ToArray();
     }
-    
-    public static string MemoryString(Dictionary<string, object> memory) {
+
+    public static string DictionaryToString<T>(Dictionary<string, T> dict) {
         string buffer = "";
-        foreach (KeyValuePair<string, object> kvp in memory) {
+        foreach (KeyValuePair<string, T> kvp in dict) {
             buffer += kvp.ToString() + ",";
+        }
+        return buffer;
+    }
+    public static string DictionaryKeys<T>(Dictionary<string, T> dict) {
+        string buffer = "";
+        foreach (KeyValuePair<string, T> kvp in dict) {
+            buffer += kvp.Key + "\n";
         }
         return buffer;
     }
