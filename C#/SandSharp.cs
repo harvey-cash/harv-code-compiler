@@ -3,11 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public static class Command {
-
-    // A method takes in memory and returns modified memory + a result
-    public delegate (Dictionary<string, object>, object) Method(Dictionary<string, Method> methods, 
-        Dictionary<string, object> memory, string name, string[] paramStrings, string subscript);
+public static class SandSharp {
 
     // Run all commands in array of command strings
     public static (Dictionary<string, object>, object) Run(Dictionary<string, Method> methods,
