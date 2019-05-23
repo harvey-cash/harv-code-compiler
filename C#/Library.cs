@@ -5,6 +5,15 @@ using UnityEngine;
 
 public class Library {
 
+    // Create a library from given methods dictionary
+    public static Dictionary<string, Command.Method> GenerateLibrary(Dictionary<string, Command.Method> methods) {
+        Dictionary<string, Command.Method> library = new Dictionary<string, Command.Method>(builtIns);
+        foreach (var entry in methods) {
+            library[entry.Key] = methods[entry.Key];
+        }
+        return library;
+    }
+
     public static Command.Method Print = (methods, memory, name, paramStrings, subscript) => {
         object[] parameters = Command.EvaluateParameters(methods, paramStrings, memory);
 
