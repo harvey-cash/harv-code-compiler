@@ -157,7 +157,7 @@ public static class SandSharp {
     }
 
     // Look for a method to run. Error if it doesn't exist!
-    private static (Dictionary<string, object>, object) LookupAndRun(Dictionary<string, Method> methods,
+    public static (Dictionary<string, object>, object) LookupAndRun(Dictionary<string, Method> methods,
         out bool exists,
         Dictionary<string, object> memory, string name, string[] paramStrings, string subscript) {
 
