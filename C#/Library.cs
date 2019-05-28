@@ -84,6 +84,13 @@ public class Library {
         return (memory, Mathf.Tan(param));
     };
 
+    public static Method Not = (methods, memory, name, paramStrings, subscript) => {
+        object[] parameters = SandSharp.EvaluateParameters(methods, paramStrings, memory);
+
+        bool param = (bool)parameters[0];
+        return (memory, !param);
+    };
+
     // Harvey-defined methods
     public static Dictionary<string, Method> builtIns = new Dictionary<string, Method>() {
         { "print", Print },
@@ -93,6 +100,7 @@ public class Library {
         { "while", While },
         { "sin", Sin },
         { "cos", Cos },
-        { "tan", Tan }
+        { "tan", Tan },
+        { "!", Not }
     };
 }

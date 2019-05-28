@@ -106,13 +106,18 @@ public static class SandSharp {
         if (ScriptParser.ParseEquation(command,
             out string left, out string opstr, out string right)) {
 
+            Debug.Log(command);
+
             ScriptParser.IsOperator(opstr, out bool isBool);
             object leftObj, rightObj;
             (memory, leftObj) = Run(methods, memory, left);
             (memory, rightObj) = Run(methods, memory, right);
 
-            float leftEval = (float)leftObj;
-            float rightEval = (float)rightObj;
+            Debug.Log(leftObj);
+            Debug.Log(rightObj);
+
+            float leftEval = float.Parse(leftObj.ToString());
+            float rightEval = float.Parse(rightObj.ToString());
 
             if (isBool) {
                 ScriptParser.BoolOperator op = ScriptParser.BoolOp(opstr);
@@ -176,7 +181,7 @@ public static class SandSharp {
         }
 
         // Else:
-        Terminal.terminal.Print("\"" + name + "\" is undefined.");
+        // Terminal.terminal.Print("\"" + name + "\" is undefined.");
         exists = false;
         return (memory, null);
     }

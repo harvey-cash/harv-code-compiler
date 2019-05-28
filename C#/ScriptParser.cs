@@ -108,51 +108,89 @@ public class ScriptParser {
         // Reword method declarations before returning
         return RewordDefs(listCommands);
     }
-
+    
     // def is actually a method that gets called with parameters for
     // method name and parameter names
     private static string[] RewordDefs(List<string> listCommands) {
+
+        (int,string) latestIf = (-1, null);
         for (int i = 0; i < listCommands.Count; i++) {
-            if (listCommands[i].Length > 4 && listCommands[i].Substring(0, 4) == "def~") {
-                string[] parameters = SplitParameters(listCommands[i]);
 
-                string name = null;
-
-                int paramEndIndex = 0;
-                for (int j = 4; j < listCommands[i].Length; j++) {
-                    char c = listCommands[i][j];
-
-                    if (name == null && c == '(') { name = listCommands[i].Substring(4, j - 4); }
-                    if (c == '{') { paramEndIndex = j; break; }
-                }
-
-                string methodDeclaration = "def(\"" + name + "\"";
-                for (int p = 0; p < parameters.Length; p++) {
-                    methodDeclaration += ",\"" + parameters[p] + "\"";
-                }
-                methodDeclaration += ")";
-
-                listCommands[i] = methodDeclaration + listCommands[i].Substring(paramEndIndex);
+            bool CommandIs(string pattern) {
+                return listCommands[i].Length > pattern.Length
+                    && listCommands[i].Substring(0, pattern.Length) == pattern;
             }
 
-            if (listCommands[i].Length > 4 && listCommands[i].Substring(0, 4) == "for(") {
-                string[] parameters = SplitParameters(listCommands[i]);
-                string decl = parameters[0];
-                string variable = "";
-                int index = 6;
-                while (decl[0] != '=') {
-                    index++;
-                    variable += decl[0];
-                    decl = decl.Substring(1);
-                }
-                string start = decl.Substring(1);
-
-                listCommands[i] = "for(\"" + variable + "\"," + start + listCommands[i].Substring(index);
-                Debug.Log(listCommands[i]);
-            }
+            if (CommandIs("def~")) { listCommands[i] = ReplaceDef(listCommands[i]); }
+            if (CommandIs("for(")) { listCommands[i] = ReplaceFor(listCommands[i]); }
+            if (CommandIs("if(")) { latestIf = RememberIf(i, listCommands[i]); }
+            if (CommandIs("else{")) { listCommands[i] = ReplaceElse(i, latestIf, listCommands[i]); }    
         }
 
         return listCommands.ToArray();
+    }
+
+    // Replace def keyword command with a call to "def" method
+    private static string ReplaceDef(string command) {
+        string[] parameters = SplitParameters(command);
+
+        string name = null;
+
+        int paramEndIndex = 0;
+        for (int j = 4; j < command.Length; j++) {
+            char c = command[j];
+
+            if (name == null && c == '(') { name = command.Substring(4, j - 4); }
+            if (c == '{') { paramEndIndex = j; break; }
+        }
+
+        string methodDeclaration = "def(\"" + name + "\"";
+        for (int p = 0; p < parameters.Length; p++) {
+            methodDeclaration += ",\"" + parameters[p] + "\"";
+        }
+        methodDeclaration += ")";
+
+        return methodDeclaration + command.Substring(paramEndIndex);
+    }
+
+    // Replace for loop syntax with a call to the "for" method
+    private static string ReplaceFor(string command) {
+        string[] parameters = SplitParameters(command);
+        string decl = parameters[0];
+        string variable = "";
+        int index = 6;
+        while (decl[0] != '=') {
+            index++;
+            variable += decl[0];
+            decl = decl.Substring(1);
+        }
+        string start = decl.Substring(1);
+
+        return "for(\"" + variable + "\"," + start + command.Substring(index);
+    }
+
+    // Keep track of last declared if statement
+    private static (int, string) RememberIf(int i, string command) {
+        string[] parameters = SplitParameters(command);
+        (int, string) latestIf = (i, "(");
+        for (int p = 0; p < parameters.Length - 1; p++) {
+            latestIf.Item2 += p + ",";
+        }
+        if (parameters.Length > 0) {
+            latestIf.Item2 += parameters[parameters.Length - 1] + ")";
+        }
+        return latestIf;
+    }
+
+    // If last command was an 'if', replace this else with !'if'
+    private static string ReplaceElse(int i, (int,string) latestIf, string command) {
+        if (i != latestIf.Item1 + 1) {
+            throw new Exception("Else must follow if!");
+        }
+
+        string restOfCommand = command.Substring(4);
+        string startOfCommand = "if(!" + latestIf.Item2 + ")";
+        return startOfCommand + restOfCommand;
     }
 
     public static bool IsOperator(string opstr) { return IsOperator(opstr, out bool isBool); }
