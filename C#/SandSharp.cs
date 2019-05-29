@@ -17,18 +17,16 @@ public static class SandSharp {
             return (memory, null);
         }
 
-        int i = -1;
-
         try {
             object result = null;            
-            for (i = 0; i < commands.Length; i++) {
+            for (int i = 0; i < commands.Length; i++) {
                 (memory, result) = RunCommand(methods, memory, commands[i]);
             }
             return (memory, result);
         }
-        catch (Exception e) {            
-            Debug.LogError("Line " + i.ToString() + ": " + e.ToString());
-            Terminal.terminal.Print("Line " + i.ToString() + ": " + e.ToString());
+        catch (SandSharpException e) {
+            Debug.LogError("Line " + e.lineIndex.ToString() + ": " + e.exception.ToString());
+            Terminal.terminal.Print("Line " + e.lineIndex.ToString() + ": " + e.exception.ToString());
             Terminal.terminal.Print("Script stopped.");
             return (memory, null);
         }
@@ -44,7 +42,7 @@ public static class SandSharp {
     // Run subscript on subMemory, and remove changes to anything that wasn't defined in the outer scope's memory
     public static (Dictionary<string, object>, object) RunSubscript(Dictionary<string, Method> methods,
         Dictionary<string, object> memory, Dictionary<string, object> subMemory, Command subscript) {
-        Command[] subCommands = ScriptParser.ParseCommandStrings(subscript.script);
+        Command[] subCommands = ScriptParser.ParseCommandStrings(subscript.line, subscript.script);
 
         // We ignore whatever the runtime equates to, 
         // and instead specifically look for the value of the "return" variable
@@ -94,7 +92,6 @@ public static class SandSharp {
         }
         if (ScriptParser.IsStringLiteral(command.script)) {
             string newString = command.script.Substring(1, command.script.Length - 2);
-            Debug.Log(newString);
             return (memory, newString);
         }
 
@@ -148,8 +145,15 @@ public static class SandSharp {
                 string[] paramNames = ScriptParser.SplitParameters(command.script.Substring(i));
                 string subscript = ScriptParser.ParseSubscript(command.script.Substring(i + 1));
 
-                return LookupAndRun(methods, out bool methodExists, memory, methodName, 
+                object result;
+                (memory, result) = LookupAndRun(methods, out bool methodExists, memory, methodName, 
                     paramNames, new Command(command.line, subscript));
+                if (methodExists) {
+                    return (memory, result);
+                }
+                else {
+                    throw new SandSharpException(command.line, "Method \"" + buffer + "\" is undefined.");
+                }
             }
 
             // Must just be some other letter or number!
@@ -159,8 +163,7 @@ public static class SandSharp {
 
         // We reached the end without calling anything interesting? Oh.
         // I guess we don't like that. Probably doesn't exist
-        Terminal.terminal.Print("\"" + buffer + "\" is undefined.");
-        throw new Exception();
+        throw new SandSharpException(command.line, "\"" + buffer + "\" is undefined.");
     }
 
     // Look for a method to run. Error if it doesn't exist!
@@ -183,7 +186,6 @@ public static class SandSharp {
         }
 
         // Else:
-        // Terminal.terminal.Print("\"" + name + "\" is undefined.");
         exists = false;
         return (memory, null);
     }

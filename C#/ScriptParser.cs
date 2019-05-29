@@ -10,12 +10,15 @@ public class ScriptParser {
 
     // We don't like spaces anywhere other than within string literals
     public static Command[] ParseCommandStrings(string scriptString) {
+        return ParseCommandStrings(0, scriptString);
+    }
+
+    public static Command[] ParseCommandStrings(int lineIndex, string scriptString) {
         if(scriptString == null) { return new Command[0]; }
 
         List<Command> listCommands = new List<Command>();
 
-        int lineIndex = 0;
-        int depthSubscript = 0;
+        int depthSubscript = 0, startIndex = -1;
         bool withinSubscript = false;
         bool withinStringLiteral = false;
 
@@ -27,6 +30,9 @@ public class ScriptParser {
             if (Array.Exists(ignoreChars, x => x == c)) {
                 continue;
             }
+
+            // Increment lineCounter
+            if (c == '\n') { lineIndex++; }
 
             /* ~~~~~ WITHIN SUBSCRIPT ~~~~~ */
 
@@ -40,15 +46,12 @@ public class ScriptParser {
                     depthSubscript--;
                     // Broke the surface
                     if (depthSubscript < 1) {
-                        listCommands.Add(new Command(lineIndex, bufferCommand));
+                        listCommands.Add(new Command(startIndex, bufferCommand));
                         bufferCommand = "";
                         withinSubscript = false;
                     }
                     continue;
                 }
-
-                // Increment lineCounter
-                if (c == '\n') { lineIndex++; }
 
                 // Otherwise, simply add to buffer
                 bufferCommand += c;
@@ -72,8 +75,10 @@ public class ScriptParser {
 
             // Comments use '#', ignore following until newline
             if (c == '#') {
-                if (bufferCommand.Length > 0) { listCommands.Add(new Command(lineIndex, bufferCommand)); }
-                bufferCommand = "";
+                if (bufferCommand.Length > 0) {
+                    listCommands.Add(new Command(lineIndex, bufferCommand));
+                    bufferCommand = "";
+                }
                 do { i++; } while (i < scriptString.Length - 1 && scriptString[i + 1] != '\n');
                 continue;
             }
@@ -89,6 +94,7 @@ public class ScriptParser {
                 bufferCommand += c;
                 depthSubscript++;
                 withinSubscript = true;
+                startIndex = lineIndex;
                 continue;
             }
 
@@ -98,7 +104,6 @@ public class ScriptParser {
                     listCommands.Add(new Command(lineIndex, bufferCommand));
                     bufferCommand = "";
                 }
-                lineIndex++;
                 continue;
             }
 
@@ -134,6 +139,9 @@ public class ScriptParser {
             if (CommandIs("else{")) { commands[i].script = ReplaceElse(i, latestIf, commands[i].script); }    
         }
 
+        for (int i = 0; i < commands.Length; i++) {
+            Debug.Log(commands[i].line + ":" + commands[i].script);
+        }
         return commands;
     }
 
@@ -486,9 +494,15 @@ public class ScriptParser {
 
         List<string> paramsList = new List<string>();
         string paramBuffer = "";
+        bool withinString = false;
         int depth = 0;
         for (int i = 0; i < paramString.Length; i++) {
             char c = paramString[i];
+
+            if (c == '"') { withinString = !withinString; }
+            if (withinString) { paramBuffer += c; continue; }
+
+            // ~~~~~~~ NOT WITHIN STRING ~~~~~~~~ //
 
             if (c == '(') { depth++; }
             if (c == ')') {
