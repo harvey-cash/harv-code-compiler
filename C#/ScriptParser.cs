@@ -9,9 +9,12 @@ public class ScriptParser {
     public static char[] ignoreChars = new char[] { '\t' };
 
     // We don't like spaces anywhere other than within string literals
-    public static string[] ParseCommandStrings(string scriptString) {
-        List<string> listCommands = new List<string>();
+    public static Command[] ParseCommandStrings(string scriptString) {
+        if(scriptString == null) { return new Command[0]; }
 
+        List<Command> listCommands = new List<Command>();
+
+        int lineIndex = 0;
         int depthSubscript = 0;
         bool withinSubscript = false;
         bool withinStringLiteral = false;
@@ -37,12 +40,15 @@ public class ScriptParser {
                     depthSubscript--;
                     // Broke the surface
                     if (depthSubscript < 1) {
-                        listCommands.Add(bufferCommand);
+                        listCommands.Add(new Command(lineIndex, bufferCommand));
                         bufferCommand = "";
                         withinSubscript = false;
                     }
                     continue;
                 }
+
+                // Increment lineCounter
+                if (c == '\n') { lineIndex++; }
 
                 // Otherwise, simply add to buffer
                 bufferCommand += c;
@@ -66,7 +72,7 @@ public class ScriptParser {
 
             // Comments use '#', ignore following until newline
             if (c == '#') {
-                if (bufferCommand.Length > 0) { listCommands.Add(bufferCommand); }
+                if (bufferCommand.Length > 0) { listCommands.Add(new Command(lineIndex, bufferCommand)); }
                 bufferCommand = "";
                 do { i++; } while (i < scriptString.Length - 1 && scriptString[i + 1] != '\n');
                 continue;
@@ -89,9 +95,10 @@ public class ScriptParser {
             // Split on line breaks
             if (c == '\n') {
                 if (bufferCommand.Length > 0) {
-                    listCommands.Add(bufferCommand);
+                    listCommands.Add(new Command(lineIndex, bufferCommand));
                     bufferCommand = "";
                 }
+                lineIndex++;
                 continue;
             }
 
@@ -102,32 +109,32 @@ public class ScriptParser {
 
         // Final command
         if (bufferCommand.Length > 0) {
-            listCommands.Add(bufferCommand);
+            listCommands.Add(new Command(lineIndex, bufferCommand));
         }
 
         // Reword method declarations before returning
-        return RewordDefs(listCommands);
+        return RewordDefs(listCommands.ToArray());
     }
     
     // def is actually a method that gets called with parameters for
     // method name and parameter names
-    private static string[] RewordDefs(List<string> listCommands) {
+    private static Command[] RewordDefs(Command[] commands) {
 
         (int,string) latestIf = (-1, null);
-        for (int i = 0; i < listCommands.Count; i++) {
+        for (int i = 0; i < commands.Length; i++) {
 
             bool CommandIs(string pattern) {
-                return listCommands[i].Length > pattern.Length
-                    && listCommands[i].Substring(0, pattern.Length) == pattern;
+                return commands[i].script.Length > pattern.Length
+                    && commands[i].script.Substring(0, pattern.Length) == pattern;
             }
 
-            if (CommandIs("def~")) { listCommands[i] = ReplaceDef(listCommands[i]); }
-            if (CommandIs("for(")) { listCommands[i] = ReplaceFor(listCommands[i]); }
-            if (CommandIs("if(")) { latestIf = RememberIf(i, listCommands[i]); }
-            if (CommandIs("else{")) { listCommands[i] = ReplaceElse(i, latestIf, listCommands[i]); }    
+            if (CommandIs("def~")) { commands[i].script = ReplaceDef(commands[i].script); }
+            if (CommandIs("for(")) { commands[i].script = ReplaceFor(commands[i].script); }
+            if (CommandIs("if(")) { latestIf = RememberIf(i, commands[i].script); }
+            if (CommandIs("else{")) { commands[i].script = ReplaceElse(i, latestIf, commands[i].script); }    
         }
 
-        return listCommands.ToArray();
+        return commands;
     }
 
     // Replace def keyword command with a call to "def" method
